@@ -1,0 +1,203 @@
+﻿<div class="row mt-3 p-0 rz-custom-selector">
+    @if (IsReportSearch)
+    {
+        <div class="col-sm-6 col-lg-4">
+            <RadzenLabel Text="Report type" />
+            <RadzenDropDownDataGrid class="w-100" Change="OnReportTypeChange" AllowFiltering=true
+                                TValue=string AllowSorting=true FilterDelay=1
+                                FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
+                                AllowClear=true @bind-Value=Model.ReportType Placeholder="Choose"
+                                Data=reportTypes Name="ReportTypes"/>
+            <RadzenRequiredValidator Component="ReportTypes" Text="Report type field is required" Popup=true Style="position: absolute" />
+        </div>
+    }
+    @if (hasSearchByProjectsPermission || Model.Projects?.Count > 1)
+    {
+        <div class="col-sm-6 col-lg-4">
+            <RadzenLabel Text="Project" />
+            <RadzenDropDownDataGrid class="w-100" Change="OnSelectedProject" AllowFiltering=true
+                                TValue=string AllowSorting=true FilterDelay=1
+                                FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
+                                AllowClear=true @bind-Value=Model.ProjectId Placeholder="All"
+                                Data=@Model.Projects TextProperty=Name ValueProperty=Id />
+        </div>
+    }
+    @if ((employeePermissions?.Any() ?? false) || isUserEvaluator)
+    {
+
+        <div class="col-sm-6 col-lg-4">
+            <RadzenLabel Text="Evaluation type" />
+            <RadzenDropDownDataGrid class="w-100" AllowFiltering=true
+                                TValue=string AllowSorting=true FilterDelay=1
+                                FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
+                                AllowClear=true @bind-Value=Model.EvaluationTypeId Placeholder="All"
+                                Data=@Model.EvaluationTypes TextProperty=Name ValueProperty=Id />
+        </div>
+
+        <div class="col-sm-6 col-lg-4 mb-1">
+            <RadzenLabel Text="Agent id" />
+            <RadzenTextBox class="w-100" @bind-Value=Model.AgentId Placeholder="type..." />
+        </div>
+        <div class="col-sm-6 col-lg-4 mb-1">
+            <RadzenLabel Text="Agent name" />
+            <RadzenTextBox class="w-100" @bind-Value=Model.AgentName Placeholder="type..." />
+        </div>
+        <div class="col-sm-6 col-lg-4 mb-1">
+            <RadzenLabel Text="Evaluator id" />
+            <RadzenTextBox class="w-100" @bind-Value=Model.EvaluatorId Placeholder="type..." />
+        </div>
+        <div class="col-sm-6 col-lg-4 mb-1">
+            <RadzenLabel Text="Evaluator name" />
+            <RadzenTextBox class="w-100" @bind-Value=Model.EvaluatorName Placeholder="type..." />
+        </div>
+
+        <div class="col-sm-6 col-lg-4 mb-1">
+            <RadzenLabel Text="Account number" />
+            <RadzenTextBox class="w-100" @bind-Value=Model.AccountNumber Placeholder="type..." />
+        </div>
+
+        <div class="col-sm-6 col-lg-4 mb-1">
+            <RadzenLabel Text="Case number" />
+            <RadzenTextBox class="w-100" @bind-Value=Model.CaseNumber Placeholder="type..." />
+        </div>
+    }
+
+    <div class="col-sm-6 col-lg-4 mb-4">
+        <RadzenLabel Text="Start date" />
+        <RadzenDatePicker class="w-100" Change="OnDateChanged" TValue="DateTime?" @bind-Value=Model.DateTimeRange.Start AllowInput=false DateFormat="MM/dd/yyyy" />
+    </div>
+    <div class="col-sm-6 col-lg-4 mb-4">
+        <RadzenLabel Text="End date" />
+        <RadzenDatePicker class="w-100" Change="OnDateChanged" TValue="DateTime?" @bind-Value=Model.DateTimeRange.End AllowInput=false DateFormat="MM/dd/yyyy" />
+    </div>
+    @if (employeePermissions.Contains(nameof(Permissions.ENABLE_DISABLE_EVALUATIONS)) && !IsReportSearch)
+    {
+        <div class="col-sm-6 col-lg-4">
+            <RadzenLabel Text="State" />
+            <RadzenDropDownDataGrid class="w-100" AllowFiltering=true
+                                TValue=string AllowSorting=true FilterDelay=1
+                                FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
+                                AllowClear=true @bind-Value=Model.State Placeholder="All"
+                                Data="@(new List<string> {"Enabled", "Disabled", "All"})" />
+        </div>
+    }
+    @if (isDateRangeInValid)
+    {
+        <div class="col-6 ml-3 mt-n3 mb-4 alert alert-danger d-flex align-items-center" role="alert">
+            <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:"><use xlink:href="#exclamation-triangle-fill" /></svg>
+            <div>
+                Start date cannot be grater than the end date and end date cannot be minor than the start date
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+
+    [Parameter]
+    public EvaluationDTO? Model { get; set; }
+    [Inject]
+    private IEvaluationUseCases? EvaluationUseCases { get; set; }
+    [Inject]
+    private IEvaluatorProjectUseCases? EvaluatorProjectUseCases { get; set; }
+    [Inject]
+    private IEvaluationTypesUseCases? EvaluationTypesUseCases { get; set; }
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+    [Parameter]
+    public bool IsReportSearch { get; set; }
+    [Parameter]
+    public EventCallback OnSelectedReportType { get; set; }
+    public List<string> reportTypes { get; set; } = new() { "Agents", "Evaluation type", "General" };
+    public List<string> employeePermissions { get; set; } = new();
+    public List<Project> projects { get; set; } = new();
+    private bool isDateRangeInValid { get; set; }
+    private bool hasSearchByProjectsPermission { get; set; }
+    private bool isUserEvaluator { get; set; }
+    private string? loggedInUserId { get; set; }
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            loggedInUserId = (await AuthenticationState)
+                   .User.Claims.First(claim => claim.Type == ClaimTypes.NameIdentifier).Value;
+
+            employeePermissions = (await EvaluatorProjectUseCases.GetEmployeePermissionsAsync(loggedInUserId)).ToList();
+            hasSearchByProjectsPermission = employeePermissions.Contains(nameof(Permissions.SEARCH_EVALUATIONS_BY_PROJECT));
+
+            isUserEvaluator = await EvaluatorProjectUseCases.IsEmployeeEvaluatorAsync(new { EmployeeId = loggedInUserId });
+
+            await GetProjectByCompany();
+            await GetEvaluationTypes();
+            StateHasChanged();
+        }
+    }
+
+    private async Task GetEvaluationTypes()
+    {
+        if (Model.Projects?.Any() ?? false)
+        {
+            if (Model.Projects.Count == 1)
+            {
+                var projectId = Model.Projects[0].Id;
+                Model.EvaluationTypes = (await EvaluationTypesUseCases.GetEvaluationTypesAsync(new { Model.EvaluatorId, projectId, hasSearchByProjectsPermission = false })).ToList();
+            }
+            else
+            {
+                Model.EvaluationTypes = (await EvaluationTypesUseCases.GetEvaluationTypesAsync(new { Model.EvaluatorId, Model.ProjectId, hasSearchByProjectsPermission = false })).ToList();
+            }
+        }
+    }
+
+    void OnDateChanged(DateTime? date)
+    {
+        isDateRangeInValid = Model.DateTimeRange.IsDateRangeInValid();
+    }
+
+    private async Task OnSelectedProject()
+    {
+        if (Model.ProjectId is not null)
+        {
+            var evaluatorId = string.Empty;
+            Model.EvaluationTypes = await EvaluationTypesUseCases.GetEvaluationTypesAsync(new { Model.ProjectId, EvaluatorId = loggedInUserId, hasSearchByProjectsPermission });
+
+            return;
+        }
+
+        Model.EvaluationTypes = new List<EvaluationType>();
+    }
+
+    private async Task OnReportTypeChange()
+    {
+        await OnSelectedReportType.InvokeAsync();
+    }
+
+    private async Task GetProjectByCompany()
+    {
+        if (hasSearchByProjectsPermission)
+        {
+            if (employeePermissions.Contains(nameof(Permissions.VIEW_SHARED_PROJECTS)))
+            {
+                var projectsALL = await EvaluatorProjectUseCases.GetProjectsByCompany(new { company = "ALL" });
+                projects.AddRange(projectsALL);
+            }
+            if (employeePermissions.Contains(nameof(Permissions.VIEW_SSS_PROJECTS)))
+            {
+                var projectsSSS = await EvaluatorProjectUseCases.GetProjectsByCompany(new { company = "SSS" });
+                projects.AddRange(projectsSSS);
+            }
+            if (employeePermissions.Contains(nameof(Permissions.VIEW_SF_PROJECTS)))
+            {
+                var projectsSF = await EvaluatorProjectUseCases.GetProjectsByCompany(new { company = "SF" });
+                projects.AddRange(projectsSF);
+            }
+        }
+        else
+        {
+            projects = (await EvaluatorProjectUseCases.GetEvaluatorAssignedProjectsAsync(new { EvaluatorId = loggedInUserId })).ToList();
+        }
+         Model.Projects = projects;
+    }
+}

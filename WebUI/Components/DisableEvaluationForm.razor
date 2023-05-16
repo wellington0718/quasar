@@ -1,0 +1,64 @@
+﻿@inject DialogService DialogService
+@inject IEvaluationUseCases EvaluationUseCases
+@inject NotificationService NotificationService
+
+<style>
+    .rz-textbox {
+        border-top: none !important;
+        border-radius: 0px 0px 4px 4px;
+    }
+
+</style>
+<div class="d-flex flex-column rz-custom-selector mx-auto mb-n1">
+
+        <p style="font-size:14px; color:#424242">
+
+            This action will @(SelectedEvaluation.Enabled? "disable" : "enable") the evaluation <strong>@SelectedEvaluation.EvaluationTypeName</strong>, for agent <strong>@SelectedEvaluation.AgentIdCommonName</strong>
+            for date <strong>@SelectedEvaluation.OriginalDateString</strong>
+
+            @if (!string.IsNullOrEmpty(SelectedEvaluation.AccountNumber))
+            {
+                AndOrWidth = " and ";
+                @(" with account number ")
+                ;
+                <strong>@SelectedEvaluation.AccountNumber</strong>
+            }
+            @if (!string.IsNullOrEmpty(SelectedEvaluation.CaseNumber))
+            {
+                AndOrWidth = " and ";
+                @(", case number ")
+                ;
+                <strong>@SelectedEvaluation.CaseNumber</strong>
+
+            }
+            @AndOrWidth score of <strong>@SelectedEvaluation.Score</strong>.
+            This will make it @(SelectedEvaluation.Enabled? "unaccesible" : "accesible") and will remain on the evaluation permanent record.
+        </p>
+    
+    <RadzenTemplateForm class="disable-evaluation-form position-relative" Data="model" TItem="EvaluationDTO" Submit="HandleDisableEvaluation">
+        <RadzenLabel Text="Reason" class="d-block rz-custom-selector form-label p-2" />
+        <RadzenTextBox class="w-100" TabIndex="0" Name="EditionNotes" Placeholder="Type..." @bind-Value="model.EditionNotes" />
+        <RadzenLengthValidator Component="EditionNotes" Min="10" Text="The reason should be at least 10 characters long" Popup=true Style="position: absolute" />
+
+        <div class="d-flex gap-3 ml-3 mb-1 justify-content-end">
+            <RadzenButton Visible="SelectedEvaluation.Enabled" ButtonStyle="ButtonStyle.Danger" Text="Disable" ButtonType="ButtonType.Submit" Icon="unpublished" />
+            <RadzenButton Visible="@(!SelectedEvaluation.Enabled)" ButtonStyle="ButtonStyle.Success" Text="Enable" ButtonType="ButtonType.Submit" Icon="published_with_changes" />
+            <RadzenButton ButtonStyle="ButtonStyle.Light" Icon="cancel" Text="Close" Click="(() => DialogService.Close(false))" />
+        </div>
+    </RadzenTemplateForm>
+</div>
+
+@code {
+
+    [Parameter]
+    public EvaluationDTO? SelectedEvaluation { get; set; }
+
+    private string AndOrWidth = " with ";
+    private EvaluationDTO model = new();
+
+    private void HandleDisableEvaluation()
+    {
+        SelectedEvaluation.EditionNotes =  $"{(SelectedEvaluation.Enabled? "(Disabled)" : "(Enabled) ")} {model.EditionNotes}";
+        DialogService.Close(true);
+    }
+}

@@ -1,0 +1,72 @@
+﻿<ErrorBoundary>
+    <ChildContent>
+
+        <div class="row justify-content-between">
+            <div class="col px-1">
+                <RadzenPanel>
+                    <HeaderTemplate>
+                        <h4 class="manage-evaluator-panel-header">
+                            <strong>@ProjectEmployeesTableTitle</strong>
+                        </h4>
+                    </HeaderTemplate>
+                    <ChildContent>
+                        <div>
+                            <EmployeesTable @ref="projectEmployeesTable" OnRowSelectedValueChanged="HandleProjectTableRowSelectedValueChanged"
+                                            Employees="ProjectEmployeesEvaluators" />
+                        </div>
+                    </ChildContent>
+                </RadzenPanel>
+            </div>
+
+            @if (ProjectEmployeesTableTitle.Equals("Project employees"))
+            {
+                <RadzenPanel Collapsed=true AllowCollapse="true" class="col">
+                    <HeaderTemplate>
+                        <h4 class="manage-evaluator-panel-header">
+                            <strong>Other projects employees</strong>
+                        </h4>
+                    </HeaderTemplate>
+                    <ChildContent>
+                        <div>
+                            <EmployeesTable @ref="moreEmployeesTable" Employees="MoreProjectsEmployees"
+                                        OnRowSelectedValueChanged="HandleMoreEmployeesTableRowSelectedValueChanged" />
+                        </div>
+
+                    </ChildContent>
+                </RadzenPanel>
+            }
+
+            <div class="text-center @(ProjectEmployeesTableTitle.Equals("Project employees")? "col-12" : "col-2")" style="margin-top: @(ProjectEmployeesTableTitle.Equals("Project employees")?  "0" : "250px")">
+                <RadzenButton class="icon my-3  mx-auto align-self-center"
+                              Click="SwapProjectEvaluators"
+                              Style="max-width:160px"
+                              Disabled="(!projectTableRowsSelected && !evaluatorsTableRowsSelected && !moreEmployeesTableRowsSelected)"
+                              ButtonType="ButtonType.Button"
+                              Text="Assign/Remove" />
+            </div>
+
+            <div class="px-1 @(ProjectEmployeesTableTitle.Equals("Project employees")? "col-12" : "col")">
+                <RadzenPanel>
+                    <HeaderTemplate>
+                        <h4 class="manage-evaluator-panel-header">
+                            <strong>@EvaluatorsTableTitle</strong>
+                        </h4>
+                    </HeaderTemplate>
+                    <ChildContent>
+                        <div>
+                            <EmployeesTable @ref="evaluatorsTable" OnRowSelectedValueChanged="HandleEvaluatorTableRowSelectedValueChanged"
+                                            Employees="ProjectEvaluationTypeEvaluators" />
+                        </div>
+
+                    </ChildContent>
+                </RadzenPanel>
+
+            </div>
+        </div>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>

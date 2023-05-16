@@ -1,0 +1,28 @@
+﻿@page "/evaluationtypes/create"
+
+@attribute [Authorize(Policy = "IsAdmin")]
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenPanel AllowCollapse="true" class="p-0">
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>New evaluation type</strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+                <EvaluationTypeEditForm IsEditingType="false" />
+            </ChildContent>
+        </RadzenPanel>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+@code {
+    [CascadingParameter]
+    private Error? Error { get; set; }
+
+}

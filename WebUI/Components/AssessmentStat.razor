@@ -1,0 +1,20 @@
+﻿<div class="col-xs-12 col-sm-6 col-lg-4 justify-content-md-start">
+    <div class="d-flex align-items-center p-2">
+        <RadzenIcon class="mx-4" Icon="@IconType" IconStyle="IconStyle.Info" Style="font-size:54px" />
+        <div class="h4 text-body text-black-50">
+            @Title
+            <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@Data" class="rounded-pill" Style="font-size:20px;" />
+        </div>
+
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public string? IconType { get; set; }
+    [Parameter]
+    public string? Title { get; set; }
+    [Parameter]
+    public string? Data { get; set; }
+}

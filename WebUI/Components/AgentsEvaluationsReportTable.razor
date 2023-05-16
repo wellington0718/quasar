@@ -1,0 +1,182 @@
+﻿<style>
+    .quality-rating-table.rz-datatable td {
+        cursor: pointer;
+    }
+</style>
+
+<ErrorBoundary>
+    <ChildContent>
+
+        <RadzenPanel AllowCollapse="true" class="p-0 pb-4 mt-4">
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Quality rate</strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="mx-3 mb-2">
+
+                    <div class="flex mb-3 mt-2">
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Export XLS" Icon="grid_on" Click="ExportExcel" class="mr-2" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Export CSV" Icon="wrap_text" Click="ExportCSV" />
+                    </div>
+
+                    <RadzenDataGrid class="quality-rating-table" Page="@OnPage" AllowFiltering="true" RowSelect="@OnRowSelect" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowPaging="true"
+                                    @ref="qualityRateGrid" SelectionMode="DataGridSelectionMode.Single" @bind-Value=selectedItems FilterMode="FilterMode.Simple" 
+                                    FilterDelay="1" AllowColumnResize="true" IsLoading="false" AllowSorting="true" Data="@AgentsEvaluationsReport.ToList()" TItem="QualityRateDTO" ColumnWidth="200px">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Property="AgentIdName" Title="Agent"/>
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Property="ProjectName" Width="300px" Title="Project">
+                                <FooterTemplate>
+                                    @(pagingSummary)
+                                </FooterTemplate>
+                            </RadzenDataGridColumn>
+                           
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Property="OrdersAudited.ToString()" Title="Orders audited">
+                                <FooterTemplate>
+                                    @($"Total orders: {totalOrders}")
+                                </FooterTemplate>
+                            </RadzenDataGridColumn>
+
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Type="typeof(string)" Property="Errors.ToString()" Title="Errors">
+                                <FooterTemplate>
+                                    @($"Total Errors: {totalErrors}")
+                                </FooterTemplate>
+
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="QualityRateDTO" SortProperty="QualityRating" Type="typeof(string)" Property="QualityRating.ToString()" Title="Quality rating">
+                                <Template Context=AgentEvaluationReport>
+                                    @if (AgentEvaluationReport.OrdersAudited > 0)
+                                    {
+                                        @(AgentEvaluationReport.QualityRating)
+
+                                    }
+                                    else
+                                    {
+                                        @("N/A")
+
+                                    }
+                                </Template>
+                                <FooterTemplate>
+
+                                    @($"Quality avg.: {projectAvg}")
+                                </FooterTemplate>
+
+                            </RadzenDataGridColumn>
+
+                        </Columns>
+                    </RadzenDataGrid>
+                </div>
+            </ChildContent>
+
+        </RadzenPanel>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+
+@code {
+    [CascadingParameter]
+    private Error? Error { get; set; }
+    [Parameter]
+    public List<QualityRateDTO> AgentsEvaluationsReport { get; set; } = new();
+    private string? projectAvg;
+    private string? pagingSummary;
+    private int totalOrders;
+    private int totalErrors;
+    private RadzenDataGrid<QualityRateDTO>? qualityRateGrid { get; set; }
+    [Parameter]
+    public EventCallback<QualityRateDTO> OnRowSelected { get; set; }
+    IList<QualityRateDTO>? selectedItems;
+    [Inject]
+    private IJSRuntime? JSRuntime { get; set; }
+    [Inject]
+    private IFileBuilder? FileBuilder { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var qualityRatings = AgentsEvaluationsReport.Where(agentEvaluationReport => agentEvaluationReport.QualityRating > 0).ToList();
+            totalOrders = AgentsEvaluationsReport.Sum(agentEvaluationReport => agentEvaluationReport.OrdersAudited);
+            totalErrors = AgentsEvaluationsReport.Sum(agentEvaluationReport => agentEvaluationReport.Errors);
+        projectAvg = qualityRatings.Any() ? $"{qualityRatings.Average(agentEvaluationReport => agentEvaluationReport.QualityRating):F2}" : "0.00";
+
+            var currentPage = AgentsEvaluationsReport.Count > 0 ? qualityRateGrid?.CurrentPage + 1 : 0;
+            pagingSummary = $"Displaying page {currentPage} of {Math.Ceiling(AgentsEvaluationsReport.Count/10m)} (total {AgentsEvaluationsReport.Count()} records)";
+    }
+
+    private async Task ExportExcel()
+    {
+        DataTable dataTable = new();
+
+        dataTable.Columns.Add("Project", typeof(string));
+        dataTable.Columns.Add("Id", typeof(string));
+        dataTable.Columns.Add("Agent", typeof(string));
+        dataTable.Columns.Add("Orders audited", typeof(string));
+        dataTable.Columns.Add("Errors", typeof(string));
+        dataTable.Columns.Add("Quality rating", typeof(string));
+
+        AgentsEvaluationsReport.OrderBy(e => e.ProjectName).ThenBy(e => e.AgentId)
+            .ToList().ForEach(evaluation =>
+            {
+                dataTable.Rows.Add
+                (
+                    evaluation.ProjectName,
+                    evaluation.AgentId,
+                    evaluation.AgentName,
+                    evaluation.OrdersAudited,
+                    evaluation.Errors,
+                    evaluation.QualityRating
+
+                );
+
+            });
+
+        DataRow dr = dataTable.NewRow();
+
+        dr[0] = "";
+        dr[1] = "";
+        dr[2] = "";
+        dr[3] = $"Total orders: {totalOrders}";
+        dr[4] = $"Total errors: {totalErrors}";
+        dr[5] = $"Quality avg: {projectAvg}";
+        dataTable.Rows.Add(dr);
+
+        var bytes = FileBuilder.BuildExcelFile(dataTable);
+        await JSRuntime?.SaveAs("Quality rate.xlsx", bytes);
+    }
+
+    private async Task ExportCSV()
+    {
+        List<dynamic> records = new();
+
+        var newRecord = new
+        {
+            ProjectName = string.Empty,
+            AgentId = string.Empty,
+            AgentName = string.Empty,
+            OrdersAudited = $"Total orders: {totalOrders}",
+            Errors = $"Total errors: {totalErrors}",
+            QualityRating = $"Quality avg: {projectAvg}",
+        };
+
+        AgentsEvaluationsReport.OrderBy(e => e.ProjectName).ThenBy(e => e.AgentId).ToList();
+        records.AddRange(AgentsEvaluationsReport);
+        records.Add(newRecord);
+        var bytes = FileBuilder.BuildCSVFile(records, "agentsEvaluationsQualityRate");
+        await JSRuntime?.SaveAs("Quality rate.csv", bytes);
+    }
+
+    private void OnPage(PagerEventArgs args)
+    {
+        pagingSummary = $"Displaying page {args.PageIndex +1} of {Math.Ceiling(AgentsEvaluationsReport.Count/10m)} (total {AgentsEvaluationsReport.Count()} records)";
+    }
+
+    private async Task OnRowSelect(QualityRateDTO qualityRateDTO)
+    {
+        await OnRowSelected.InvokeAsync(qualityRateDTO);
+    }
+}

@@ -1,0 +1,89 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+@using WebUI.Shared
+@namespace WebUI.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="~/" />
+    <title>Quasar</title>
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/icons/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="_content/Radzen.Blazor/css/default-base.css">
+    @(await Html.RenderComponentAsync<Theme>(RenderMode.Static))
+    <link rel="icon" href="icons/logo.ico" />
+    <link href="_content/Blazored.Toast/blazored-toast.min.css" rel="stylesheet" />
+    <link href="css/site.css" rel="stylesheet" />
+    <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
+</head>
+<body>
+    @RenderBody()
+
+    <div id="blazor-error-ui">
+        <environment include="Staging,Production">
+            An error has occurred. This application may no longer respond until reloaded.
+        </environment>
+        <environment include="Development">
+            An unhandled exception has occurred. See browser dev tools for details.
+        </environment>
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="js/Utilities.js"></script>
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+    <script src="_framework/blazor.server.js" autostart="false"></script>
+     <script>
+        
+        async function connectionDown(options) {
+           
+            for (let i = 0; i < options.maxRetries; i++) {
+               
+                await this.delay(options.retryIntervalMilliseconds);
+               
+                if (this.isDisposed) {
+                    break;
+                }
+
+                try {
+                    debugger;
+                    const result = await window.Blazor.reconnect();
+                    if (!result) {
+                        console.error("Server Rejected");
+                    } else {
+                        return;
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+           
+            location.reload();
+        }
+
+        function delay(durationMilliseconds) {
+            return new Promise(resolve => setTimeout(resolve, durationMilliseconds));
+        }
+
+        function connectionUp(e) {
+            console.log("Connection UP!");
+        }
+
+        window.Blazor.start({
+            reconnectionOptions: {
+                maxRetries: 30,
+                retryIntervalMilliseconds: 500,
+            },
+            reconnectionHandler: {
+                onConnectionDown: e => connectionDown(e),
+                onConnectionUp: e => connectionUp(e)
+            }
+        });
+    </script>
+
+</body>
+</html>
+

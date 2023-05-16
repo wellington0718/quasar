@@ -1,0 +1,9 @@
+﻿global using Domain.Models;
+global using System.Collections.Generic;
+global using System.Data;
+global using System.Threading.Tasks;
+global using Application.PluginInterfaces;
+global using Application.UseCases.EvaluationsTypeUseCase.Interfaces;
+global using Application.UseCases.EvaluationUseCases.Interfaces;
+global using  Application.UseCases.EvaluatorProjectUseCases.Interfaces;
+global using SharedKernel.DTOs;

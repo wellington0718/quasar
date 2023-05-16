@@ -1,0 +1,88 @@
+﻿@inject IEvaluatorProjectUseCases EvaluatorProjectUseCases
+
+<style>
+    .rz-sidebar .rz-panel-menu
+    .rz-navigation-item {
+        font-size: 14px;
+    }
+</style>
+<RadzenPanelMenu Match="NavLinkMatch.All">
+    <RadzenPanelMenuItem Text="Home" Icon="home" Path="/quasar/" />
+</RadzenPanelMenu>
+
+<RadzenPanelMenu Match="NavLinkMatch.Prefix">
+    <RadzenPanelMenuItem Text="Evaluations">
+        <RadzenPanelMenuItem Text="Search" Path="/quasar/evaluations/Search" />
+        <RadzenPanelMenuItem Visible="isUserEvaluator" Text="Evaluate" Path="/quasar/evaluate" />
+    </RadzenPanelMenuItem>
+</RadzenPanelMenu>
+
+<RadzenPanelMenu Visible="employeePermissions.Contains(nameof(Permissions.MANAGE_EVALUATION_TYPES))"
+                 Match="NavLinkMatch.Prefix">
+    <RadzenPanelMenuItem Text="Evaluation types and components">
+        <RadzenPanelMenuItem Text="Create" Path="/quasar/evaluationtypes/create" />
+        <RadzenPanelMenuItem Text="Edit" Path="/quasar/evaluationtypes/edit" />
+    </RadzenPanelMenuItem>
+</RadzenPanelMenu>
+
+<RadzenPanelMenu Visible="employeePermissions.Contains(nameof(Permissions.MANAGE_EVALUATORS))"
+                 Match="NavLinkMatch.Prefix">
+    <RadzenPanelMenuItem Text="Evaluators">
+        <RadzenPanelMenuItem Text="Manage" Path="/quasar/evaluators/" />
+    </RadzenPanelMenuItem>
+</RadzenPanelMenu>
+
+<RadzenPanelMenu Visible="@(isUserEvaluator || hasSearchByProjectsPermission)"
+                 Match="NavLinkMatch.Prefix">
+    <RadzenPanelMenuItem Text="Reports">
+        <RadzenPanelMenuItem Text="Quality rate" Path="/quasar/scoreaverage/" />
+    </RadzenPanelMenuItem>
+</RadzenPanelMenu>
+
+<RadzenPanelMenu Match="NavLinkMatch.Prefix">
+    <RadzenPanelMenuItem Text="Non-Conformities">
+        <RadzenPanelMenuItem Text="Create" Path="/quasar/nonConformity/Create" />
+        <RadzenPanelMenuItem Text="Search" Path="/quasar/nonConformity/Search" />
+@*        <RadzenPanelMenuItem Text="My Non-Conformities" Path="/quasar/nonConformity/MyAssignments" />*@
+    </RadzenPanelMenuItem>
+</RadzenPanelMenu>
+
+@*<RadzenPanelMenu Match="NavLinkMatch.Prefix">
+    <RadzenPanelMenuItem Text="Actions">
+        <RadzenPanelMenuItem Text="Search" Path="/quasar/action/Search" />
+        <RadzenPanelMenuItem Text="My Actions" Path="/quasar/action/myactions" />
+    </RadzenPanelMenuItem>
+</RadzenPanelMenu>*@
+
+<RadzenPanelMenu Match="NavLinkMatch.Prefix">
+    <RadzenPanelMenuItem Text="About" Path="/quasar/about/" />
+</RadzenPanelMenu>
+
+@code
+{
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private List<string> employeePermissions = new List<string>();
+    private bool isUserEvaluator;
+    private bool hasSearchByProjectsPermission;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var evaluatorId = (await AuthenticationStateTask)
+             .User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value;
+
+            employeePermissions = (await EvaluatorProjectUseCases.GetEmployeePermissionsAsync(evaluatorId)).ToList();
+
+            var user = (await EvaluatorProjectUseCases.GetEmployeesAsync(new {EmployeeId = evaluatorId})).FirstOrDefault();
+            hasSearchByProjectsPermission = employeePermissions.Contains(nameof(Permissions.SEARCH_EVALUATIONS_BY_PROJECT));
+            isUserEvaluator = await EvaluatorProjectUseCases.IsEmployeeEvaluatorAsync(new { EmployeeId = evaluatorId });
+
+            StateHasChanged();
+        }
+
+    }
+
+}

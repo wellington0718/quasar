@@ -1,0 +1,269 @@
+﻿@page "/NonConformity/Create"
+
+@inject IEvaluatorProjectUseCases EvaluatorProjectUseCases;
+@inject IApplicationService ApplicationService;
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject INonConformityUseCase NonConformityUseCase
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenPanel AllowCollapse="false" class="p-0  rz-custom-selector">
+            <HeaderTemplate>
+                <h3 style="background:#262526; color:#FFF" class="w-100 mb-4 p-2 text-center">Non-Conformity Form</h3>
+            </HeaderTemplate>
+            <ChildContent>
+                <RadzenTemplateForm @ref=nonConfFormRef Context="NonConformity" TItem="NonConformity" Data=@model Submit="SaveNonConformity">
+                    <RadzenStack class="px-3">
+                        <RadzenRow>
+                            <RadzenColumn Size="1">
+                                <RadzenLabel Text="Id" />
+                                <RadzenTextBox Value=@currentEmployee?.Id Disabled=true />
+                            </RadzenColumn>
+
+                            <RadzenColumn>
+                                <RadzenLabel Text="Name" />
+                                <RadzenTextBox Value=@currentEmployee?.FullName Disabled=true />
+                            </RadzenColumn>
+
+                            <RadzenColumn>
+                                <RadzenLabel Text="Position" />
+                                <RadzenTextBox Value=@currentEmployee?.Position Disabled=true />
+                            </RadzenColumn>
+
+                            <RadzenColumn>
+                                <RadzenLabel>Project</RadzenLabel>
+                                <RadzenTextBox Value=@currentEmployee?.ProjectName Disabled=true />
+                            </RadzenColumn>
+                        </RadzenRow>
+
+                        <RadzenRow class="d-flex justify-content-center">
+                            <RadzenColumn class="position-relative">
+                                <RadzenLabel Text="Score" />
+                                <RadzenTextBox Name="Score" @bind-Value=model.Score />
+                                <RadzenRequiredValidator Component="Score" Text="Score is required" Popup=true Style="position: absolute" />
+                            </RadzenColumn>
+
+                            <RadzenColumn class="position-relative">
+                                <RadzenLabel Text="Agent to report" />
+                                <RadzenDropDownDataGrid Name="AgentToReport" class="w-100" TextProperty="IdCommonName" @bind-Value=model.ReportedAgent Change="(agent => model.ReportedAgent = ((Employee)agent))"
+                                                        Placeholder="Select" FilterOperator="StringFilterOperator.Contains" TValue="Employee"
+                                                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                        AllowFiltering="true"
+                                                        Data=@agentsWithEva>
+
+                                    <Columns>
+                                        <RadzenDropDownDataGridColumn Property="IdCommonName" Type="typeof(string)" Title="Agent" />
+                                    </Columns>
+                                </RadzenDropDownDataGrid>
+                                <RadzenRequiredValidator Component="AgentToReport" Text="Agent to report is required" Popup=true Style="position: absolute" />
+                            </RadzenColumn>
+
+                            <RadzenColumn>
+                                <RadzenLabel Text="Incident Date" />
+                                <RadzenDatePicker Name="IncidentDate" class="w-100" @bind-Value=model.IncidentDate AllowInput=false />
+                            </RadzenColumn>
+                        </RadzenRow>
+
+                        <RadzenRow class="d-flex justify-content-center mb-n3">
+                            <RadzenColumn>
+                                <RadzenLabel Text="Application report" />
+                                <RadzenTextArea Name="ApplicationReport" class="w-100" Rows="5" @bind-Value=model.ApplicationReport />
+                            </RadzenColumn>
+
+                            <RadzenColumn>
+                                <RadzenLabel Text="Description Root Cause" />
+                                <RadzenTextArea Name="RootCause" class="w-100" Rows="5" @bind-Value=model.RootCauseDesc />
+                            </RadzenColumn>
+                        </RadzenRow>
+
+                        <RadzenRow class="mt-3">
+                            <RadzenColumn>
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center">
+                                    <RadzenText TextStyle="TextStyle.H6" class="mb-n2" Text="Can preventive/corrective action be taken?" />
+                                    <RadzenRadioButtonList @bind-Value=canTakePrevOrCurrActions TValue="bool">
+                                        <Items>
+                                            <RadzenRadioButtonListItem Text="Yes" Value="true" />
+                                            <RadzenRadioButtonListItem Text="No" Value="false" />
+                                        </Items>
+                                    </RadzenRadioButtonList>
+                                </RadzenStack>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+
+                    <RadzenStack class="mb-3 mt-4 px-3" Visible=canTakePrevOrCurrActions>
+
+                        <NonConformityActionForm Employees="employees" IsEditing=false Model="actionModel" OnAddActions=AddActions />
+
+                        <RadzenDataGrid @ref=actionGrid TItem="NonConformityAction" Data="@actions" PageSize="5" RowSelect="(nonConformityAction => EditNonConformityAction(nonConformityAction))"
+                                        ShowPagingSummary=true AllowPaging="true" SelectionMode="DataGridSelectionMode.Single" @bind-Value=selectedNonConformityActions>
+                            <Columns>
+                                <RadzenDataGridColumn TItem="NonConformityAction" Property="Description" Title="Description" />
+                                <RadzenDataGridColumn TItem="NonConformityAction" Property="Type" Title="Type" />
+                                <RadzenDataGridColumn TItem="NonConformityAction" Property="Responsible.IdCommonName" Title="Responsable" />
+                                <RadzenDataGridColumn TItem="NonConformityAction" Title="State" Property=State />
+                                <RadzenDataGridColumn TItem="NonConformityAction" Property="Verification" Title="Verification" />
+                                <RadzenDataGridColumn TItem="NonConformityAction" Property="ExpectedDate" Title="Expected Date" />
+                                <RadzenDataGridColumn TItem="NonConformityAction" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
+                                    <Template Context="nonConformityAction">
+                                        <RadzenButton Icon="edit" title="Edit" ButtonStyle="ButtonStyle.Warning" Class="m-1" Click="(arg => EditNonConformityAction(nonConformityAction))" @onclick:stopPropagation="true" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </RadzenStack>
+
+                    <RadzenStack class="p-3">
+                        <RadzenRow class="d-flex justify-content-center">
+                            <RadzenColumn Size="6">
+                                <RadzenLabel>Reinspection</RadzenLabel>
+                                <RadzenTextArea Name="Reinspection" class="w-100" Rows="3" @bind-Value=model.Reinspection />
+                            </RadzenColumn>
+
+                            <RadzenColumn Size="6">
+                                <RadzenLabel>Comments</RadzenLabel>
+                                <RadzenTextArea Name="Comments" class="w-100" Rows="3" @bind-Value=model.Comments />
+                            </RadzenColumn>
+                            <RadzenColumn class="mb-2">
+                                <RadzenButton ButtonType="ButtonType.Submit" Text="Save" Icon="save" Size="ButtonSize.Medium" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenTemplateForm>
+            </ChildContent>
+        </RadzenPanel>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+    [CascadingParameter]
+    private Error? Error { get; set; }
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private IEnumerable<Employee>? agentsWithEva;
+    private List<Employee> employees = new();
+    private Employee? currentEmployee;
+    private bool canTakePrevOrCurrActions = true;
+    private RadzenTemplateForm<NonConformity>? nonConfFormRef;
+    private NonConformity model = new NonConformity();
+    private RadzenDataGrid<NonConformityAction>? actionGrid;
+    private NonConformityAction actionModel = new();
+    private List<NonConformityAction> actions = new();
+    private IList<NonConformityAction>? selectedNonConformityActions { get; set; }
+    private DialogOptions? dialogOptions;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                agentsWithEva = await EvaluatorProjectUseCases.GetAgentsWithEvaluationsAsync();
+                employees = (await EvaluatorProjectUseCases.GetEmployeesAsync(new { EmployeeId = default(string) })).ToList();
+                var currentUserId = (await AuthenticationStateTask).User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value;
+                currentEmployee = employees.FirstOrDefault(emp => emp.Id.Equals(currentUserId));
+            }
+            catch (Exception ex)
+            {
+                Error.ProcessError(ex);
+            }
+
+            StateHasChanged();
+        }
+
+    }
+
+    public void AddActions()
+    {
+        actions.Add(actionModel);
+        actionModel = new();
+        actionGrid?.Reload();
+    }
+
+    public async Task EditNonConformityAction(NonConformityAction actionToEdit)
+    {
+        if (selectedNonConformityActions is null || !selectedNonConformityActions.Contains(actionToEdit))
+        {
+            selectedNonConformityActions = new List<NonConformityAction> { actionToEdit };
+        }
+
+        var actionBeforeUpdate = new NonConformityAction
+            {
+                Description = actionToEdit.Description,
+                ExpectedDate = actionToEdit.ExpectedDate,
+                Responsible = actionToEdit.Responsible,
+                ResponsibleId = actionToEdit.ResponsibleId,
+                State = actionToEdit.State,
+                Type = actionToEdit.Type,
+                Verification = actionToEdit.Verification
+            };
+
+        var response = await DialogService.OpenAsync<NonConformityActionForm>($"Edit action",
+                 new Dictionary<string, object>()
+                         {
+                     { "Model", actionToEdit }, { "IsEditing", true },{ "Employees", employees }
+                         },
+                 new DialogOptions() { Style = "max-width:1000 !important", ShowClose = false });
+
+        if (response)
+        {
+            var infoMessage = $"Action was edited successfully";
+            NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = infoMessage, Duration = 2000 });
+        }
+        else
+        {
+            actionToEdit.Description = actionBeforeUpdate.Description;
+            actionToEdit.ExpectedDate = actionBeforeUpdate.ExpectedDate;
+            actionToEdit.Responsible = actionBeforeUpdate.Responsible;
+            actionToEdit.ResponsibleId = actionBeforeUpdate.ResponsibleId;
+            actionToEdit.State = actionBeforeUpdate.State;
+            actionToEdit.Type = actionBeforeUpdate.Type;
+            actionToEdit.Verification = actionBeforeUpdate.Verification;
+        }
+    }
+
+    public async Task SaveNonConformity()
+    {
+        DialogService.Open<Loading>(null);
+
+        var parameters = new
+        {
+            ResponsibleId = currentEmployee?.Id,
+            Score = model.Score,
+            ApplicationType = model.ApplicationType,
+            ReportedAgent = model.ReportedAgent,
+            IncidentDate = model.IncidentDate,
+            CloseDate = model.CloseDate,
+            RootCauseDesc = model.RootCauseDesc,
+            Reinspection = model.Reinspection,
+            Comments = model.Comments,
+            ApplicationReport = model.ApplicationReport,
+            ClosedBy = model.ClosedBy
+        };
+
+        var wasAdded = await NonConformityUseCase.SaveNonConformityAsync(parameters);
+
+        if (wasAdded)
+        {
+            if (actions.Any())
+            {
+                foreach (var action in actions)
+                {
+                    action.NonConformityId = model.Id;
+                    await NonConformityUseCase.SaveNonConformityActionAsync(action);
+                }
+            }
+
+            NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Non-Conformity created", Duration = 2000 });
+            model = new();
+            DialogService.Close();
+        }
+
+    }
+}

@@ -1,0 +1,286 @@
+﻿@page "/nonConformity/search"
+
+@inject IEvaluatorProjectUseCases EvaluatorProjectUseCases
+@inject DialogService DialogService
+@inject INonConformityUseCase NonConformityUseCase
+@inject NotificationService NotificationService
+
+<PageTitle>Quasar | Search NonFormmities</PageTitle>
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenPanel AllowCollapse="false" class="mb-4 p-0 rz-custom-selector">
+
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Non-Conformity filters</strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+                <RadzenStack class="px-3">
+
+                    <RadzenRow>
+                        <RadzenColumn class="position-relative">
+                            <RadzenLabel Text="Responsable" />
+                            <RadzenDropDownDataGrid Name="Responsible" class="w-100" TextProperty="IdCommonName"
+                                                    Placeholder="Select" FilterOperator="StringFilterOperator.Contains" TValue="Employee"
+                                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                    AllowFiltering="true" Data="@employees" @bind-Value=model.Responsible>
+
+                                <Columns>
+                                    <RadzenDropDownDataGridColumn Property="IdCommonName" Type="typeof(string)" Title="Responsible" />
+                                </Columns>
+                            </RadzenDropDownDataGrid>
+                            <RadzenRequiredValidator Component="Responsible" Text="Agent to report is required" Popup=true Style="position: absolute" />
+                        </RadzenColumn>
+
+                        <RadzenColumn class="position-relative">
+                            <RadzenLabel Text="Reported agent" />
+                            <RadzenDropDownDataGrid Name="ReportedAgent" class="w-100" TextProperty="IdCommonName"
+                                                    Placeholder="Select" FilterOperator="StringFilterOperator.Contains" TValue="Employee"
+                                                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                                    AllowFiltering="true" Data="@agentsWithEva" @bind-Value=model.ReportedAgent>
+
+                                <Columns>
+                                    <RadzenDropDownDataGridColumn Property="IdCommonName" Type="typeof(string)" Title="Agent" />
+                                </Columns>
+                            </RadzenDropDownDataGrid>
+                            <RadzenRequiredValidator Component="ReportedAgent" Text="Agent to report is required" Popup=true Style="position: absolute" />
+                        </RadzenColumn>
+
+                        <RadzenColumn>
+                            <RadzenLabel Text="State" />
+                            <RadzenDropDownDataGrid Name="ActionState" class="w-100 m-0" Placeholder="All" TValue="string"
+                                                    Data=@(new List<string>(){ "In Process", "Closed" }) @bind-Value=model.State />
+                        </RadzenColumn>
+
+                        <RadzenColumn>
+                            <RadzenLabel Text="Start date" />
+                            <RadzenDatePicker Name="IncidentDate" class="w-100" @bind-Value=model.StartDate AllowInput=false DateFormat="MM/dd/yyyy" />
+                        </RadzenColumn>
+
+                        <RadzenColumn>
+                            <RadzenLabel Text="End date" />
+                            <RadzenDatePicker Name="IncidentDate" class="w-100" @bind-Value=model.EndDate AllowInput=false DateFormat="MM/dd/yyyy" />
+                        </RadzenColumn>
+                    </RadzenRow>
+
+                    <RadzenButton class="icon mb-3 mt-n2" Click="SearchNonConformitiesAsync"
+                                  ButtonType="ButtonType.Submit"
+                                  Icon="search" />
+                </RadzenStack>
+            </ChildContent>
+
+        </RadzenPanel>
+
+        <RadzenPanel class="p-0 mt-5">
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Non-Conformities </strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+                <RadzenDataGrid TItem="NonConformity" PageSize="5" class="mt-5"
+                                ShowPagingSummary=true AllowPaging="true" Data="nonConformities">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="NonConformity" Property="ResponsibleName" Title="Responsible">
+                            <Template Context="NonConformity">
+                                @(NonConformity.ResponsibleName.TrimStart('0'))
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="NonConformity" Property="ReportedAgentName" Title="Reported agent">
+                            <Template Context="NonConformity">
+                                @(NonConformity.ReportedAgentName.TrimStart('0'))
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="NonConformity" Property="State" Title="State" />
+                        <RadzenDataGridColumn TItem="NonConformity" Filterable="false" Title="Incident date" Sortable="false" TextAlign="TextAlign.Center">
+                            <Template Context="NonConformity">
+                                @(NonConformity.IncidentDate.ToString("MM/dd/yyyy"))
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="NonConformity" Filterable="false" Title="Close date" Sortable="false" TextAlign="TextAlign.Center">
+                            <Template Context="NonConformity">
+                                @(
+                                    NonConformity.CloseDate.HasValue
+                                    ? NonConformity.CloseDate
+                                    : "N/A"
+                                    )
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="NonConformity" Title="Actions" Filterable="false" Sortable="false" TextAlign="TextAlign.Center">
+                            <Template Context="NonConformity">
+                                <RadzenButton Text="See" title="See" ButtonStyle="ButtonStyle.Primary" Click="(() => SearchNonconformityActions(NonConformity.Id))" Class="m-1" @onclick:stopPropagation="true" />
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="NonConformity" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
+                            <Template Context="NonConformity">
+                                <RadzenButton Icon="edit" title="Edit" ButtonStyle="ButtonStyle.Warning" Class="m-1" @onclick:stopPropagation="true" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            </ChildContent>
+        </RadzenPanel>
+
+        <RadzenPanel class="p-0 mt-5">
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Non-Conformity actions</strong>
+                </h4>
+            </HeaderTemplate>
+
+            <ChildContent>
+                <RadzenDataGrid TItem="NonConformityAction" Data="@actions" PageSize="5"
+                                @bind-Value=selectedNonConformityActions RowSelect="(nonConformityAction => EditNonConformityAction(nonConformityAction))"
+                                ShowPagingSummary=true AllowPaging="true" SelectionMode="DataGridSelectionMode.Single">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="NonConformityAction" Property="Description" Title="Description" />
+                        <RadzenDataGridColumn TItem="NonConformityAction" Property="Type" Title="Type" />
+                        <RadzenDataGridColumn TItem="NonConformityAction" Property="ResponsibleName" Title="Responsible">
+                            <Template Context="NonConformityAction">
+                                @(NonConformityAction.ResponsibleName.TrimStart('0'))
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="NonConformityAction" Title="State" Property=State />
+                        <RadzenDataGridColumn TItem="NonConformityAction" Property="Verification" Title="Verification" />
+                        <RadzenDataGridColumn TItem="NonConformityAction" Title="Expected date">
+                            <Template Context="NonConformityAction">
+                                @(NonConformityAction.ExpectedDate.ToString("MM/dd/yyyy"))
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="NonConformityAction" Title="Close date">
+                            <Template Context="NonConformityAction">
+                                @(
+                                    NonConformityAction.CloseDate.HasValue
+                                    ? NonConformityAction.CloseDate.Value.ToString("MM/dd/yyyy")
+                                    : "N/A"
+                                    )
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="NonConformityAction" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
+                            <Template Context="nonConformityAction">
+                                <RadzenButton Icon="edit" title="Edit" ButtonStyle="ButtonStyle.Warning" Class="m-1" Click="(arg => EditNonConformityAction(nonConformityAction))" @onclick:stopPropagation="true" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            </ChildContent>
+        </RadzenPanel>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    [CascadingParameter]
+    private Error? Error { get; set; }
+    DateTime incidentDate = DateTime.Now;
+    private IEnumerable<Employee>? agentsWithEva;
+    private List<Employee> employees = new();
+    private List<NonConformity> nonConformities = new();
+    private NonConformity model = new();
+    private List<NonConformityAction> actions = new();
+    private IList<NonConformityAction>? selectedNonConformityActions { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                agentsWithEva = await EvaluatorProjectUseCases.GetAgentsWithEvaluationsAsync();
+                employees = (await EvaluatorProjectUseCases.GetEmployeesAsync(new { EmployeeId = default(string) })).ToList();
+                var currentUserId = (await AuthenticationStateTask).User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value;
+            }
+            catch (Exception ex)
+            {
+                Error.ProcessError(ex);
+            }
+
+            StateHasChanged();
+        }
+
+    }
+
+    public async Task SearchNonConformitiesAsync()
+    {
+        var parameters = new
+        {
+            ResponsibleId = model.Responsible?.Id,
+            ReportedAgentId = model.ReportedAgent?.Id,
+            model.StartDate,
+            model.EndDate,
+            model.State
+        };
+
+        nonConformities = (await NonConformityUseCase.SearchNonConformitiesAsync(parameters)).ToList();
+    }
+
+    public async void SearchNonconformityActions(string nonConformityId)
+    {
+        actions = (await NonConformityUseCase.SearchNonConformityActionsAsync(new { nonConformityId })).ToList();
+        StateHasChanged();
+    }
+
+    public async Task EditNonConformityAction(NonConformityAction actionToEdit)
+    {
+        if (selectedNonConformityActions is null || !selectedNonConformityActions.Contains(actionToEdit))
+        {
+            selectedNonConformityActions = new List<NonConformityAction> { actionToEdit };
+        }
+
+        var actionBeforeUpdate = new NonConformityAction
+            {
+                Description = actionToEdit.Description,
+                ExpectedDate = actionToEdit.ExpectedDate,
+                CloseDate = actionToEdit.CloseDate,
+                Responsible = actionToEdit.Responsible,
+                ResponsibleName = actionToEdit.ResponsibleName,
+                ResponsibleId = actionToEdit.ResponsibleId,
+                State = actionToEdit.State,
+                Type = actionToEdit.Type,
+                Verification = actionToEdit.Verification
+            };
+
+        actionToEdit.Responsible = employees.FirstOrDefault(e => e.Id.Equals(actionToEdit.ResponsibleId));
+
+        var wasEdited = await DialogService.OpenAsync<NonConformityActionForm>($"Edit action",
+                 new Dictionary<string, object>()
+                                 {
+                     { "Model", actionToEdit }, { "IsEditing", true },{ "Employees", employees }
+                                 },
+                 new DialogOptions() { Style = "max-width:1000 !important", ShowClose = false, CloseDialogOnOverlayClick = true });
+
+        if (wasEdited ?? false)
+        {
+            if (actionToEdit.State.Equals("Closed") && actionToEdit.CloseDate is null)
+            {
+                actionToEdit.CloseDate = DateTime.Now;
+            }
+
+            var infoMessage = $"Action was edited successfully";
+            NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = infoMessage, Duration = 2000 });
+        }
+        else
+        {
+            actionToEdit.Description = actionBeforeUpdate.Description;
+            actionToEdit.ExpectedDate = actionBeforeUpdate.ExpectedDate;
+            actionToEdit.CloseDate = actionBeforeUpdate.CloseDate;
+            actionToEdit.Responsible = actionBeforeUpdate.Responsible;
+            actionToEdit.ResponsibleId = actionBeforeUpdate.ResponsibleId;
+            actionToEdit.ResponsibleName = actionBeforeUpdate.ResponsibleName;
+            actionToEdit.State = actionBeforeUpdate.State;
+            actionToEdit.Type = actionBeforeUpdate.Type;
+            actionToEdit.Verification = actionBeforeUpdate.Verification;
+        }
+    }
+}
+

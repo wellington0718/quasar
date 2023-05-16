@@ -1,0 +1,131 @@
+﻿<ErrorBoundary>
+    <ChildContent>
+        <RadzenTemplateForm Context="EvaluationTypeEditForm" Submit="SaveEvaluationType" TItem="CreateEvaluationTypeDTO" Data="model">
+
+            <div class="row mt-3 px-4">
+                <div class="col-sm-6 rz-custom-selector col-xl-5 col-lg-6">
+                    <RadzenLabel Text="Project" />
+                    <RadzenDropDownDataGrid class="w-100" Change="OnProjectSelect" @bind-Value="model.Project" AllowFiltering=true
+                                            TValue=Project AllowSorting=true FilterDelay=1 Placeholder="Choose" AllowClear="true"
+                                            FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive Data=projects TextProperty=Name Name="Project" />
+
+                    <RadzenRequiredValidator Component="Project" Text="Project field is required" Popup=true />
+                </div>
+
+                @if (IsEditingType)
+                {
+
+                    <div class="col-sm-6 rz-custom-selector col-xl-5 col-lg-6">
+                        <RadzenLabel Text="Evaluation type" />
+
+                        <RadzenDropDownDataGrid @ref="EvaluationTypeDropDown" class="w-100" @bind-Value="model.EvaluationType"
+                                            Change="OnEvaluationTypeSelect" AllowFiltering=true TValue=EvaluationType AllowSorting=true
+                                            AllowClear="true" Placeholder="Choose" Disabled="(model.Project is null)" Name="EvaluationType" FilterDelay=1
+                                            TextProperty=Name FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive Data=evaluationTypes />
+
+                        <RadzenRequiredValidator Component="EvaluationType" Text="EvaluationType field is required" Popup=true />
+                    </div>
+                }
+                @if (model.EvaluationType is not null)
+                {
+                    <div class="col-12">
+                        <h4 class="panel-header">
+                            <strong>Settings</strong>
+                        </h4>
+                    </div>
+
+                    <div class="col-12 ml-n2 px-4">
+                        <div class="row mt-1 mb-2 align-items-center justify-content-between">
+                            <div class="col-12 mt-2 col-md-3 col-lg-2 mb-2 d-flex align-items-center gap-3" style="min-width:120px">
+                                <RadzenSwitch @bind-Value=@model.Enabled Change="(args => model.EvaluationType.Enabled = model.Enabled)" />
+                                <span>@(model.Enabled? "Enabled" : "Disabled")</span>
+                            </div>
+
+                            @if (!model.Enabled && IsEditingType)
+                            {
+                                <div class="col-12 my-2 col-md-8 col-lg-9 col-xl-10 alert alert-warning d-flex py-1 mb-0 px-2 align-items-center" role="alert">
+                                    <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+                                        <symbol id="exclamation-triangle-fill" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
+                                        </symbol>
+                                    </svg>
+                                    <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Warning:"><use xlink:href="#exclamation-triangle-fill" /></svg>
+                                    <span class="alert alert-warning py-1 mb-0 px-1" role="alert">Disabled evaluation types remove all exclusive evaluators. When enabled, the exclusive evaluators should be manually added again.</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if ((model.Enabled && model.Project is not null && model.EvaluationType is not null) || !IsEditingType)
+                {
+                    <div class="pr-0 rz-custom-selector col-12 col-sm-6 col-lg-3">
+                        <RadzenLabel Text="Name" class="d-block"/>
+                        <RadzenTextBox Change="OnTypeNameChange" @bind-Value="@model.Name" Name="EvaluationName" class="w-100 mb-0 pr-0" Placeholder="type..." />
+                        <RadzenRequiredValidator Component="EvaluationName" Text="Evaluation type name is required" Popup=true />
+
+                        @if (model.Name is not null)
+                        {
+                            var stringComprarizon = StringComparison.CurrentCultureIgnoreCase;
+                            var evaluationTypeName = model.EvaluationType is not null ? model.EvaluationType.Name.Trim() : string.Empty;
+
+                            <RadzenCompareValidator Visible="@((!model.Name.Trim().Equals(evaluationTypeName, stringComprarizon) && evaluationTypes.Any(c => c.Name.Trim().Equals(model.Name.Trim(), stringComprarizon))))"
+                                            Value=@model.Name Operator="CompareOperator.NotEqual"
+                                            Component="EvaluationName" Popup=true
+                                            Text="@($"Evaluation type '{model?.Name}' exists for project '{model.Project?.Name}'")" />
+                        }
+                    </div>
+
+                    <div class="ml-1 mb-2">
+                        @if (!IsEditingType)
+                        {
+                            <div class="mt-3 d-flex align-items-center gap-3 mt-n2">
+                                <RadzenSwitch @bind-Value=@model.IsUsingScoreValue Change="(args => model.IsUsingScoreValue = args)" />
+                                <span>@(model.IsUsingScoreValue? "Use score" : "No score")</span>
+                            </div>
+                        }
+
+                        <div class="mt-3 d-flex align-items-center gap-3">
+                            <RadzenSwitch Disabled=@(model.Project is null) @bind-Value=@model.IsInclusive
+                                      Change="(args => {if(model.EvaluationType is not null)  model.EvaluationType.IsInclusive = model.IsInclusive;})" />
+                            <span>Available for all evaluators</span>
+                        </div>
+                    </div>
+
+                    @if (!model.IsInclusive)
+                    {
+                        <div class="col-sm-12 mb-4">
+                            <EditProjectEvaluationTypeEvaluators @ref="EditProjectEvaluationTypeEvaluators"
+                                                         ProjectEvaluationTypeEvaluators="projectEvaluationTypeEvaluators"
+                                                         ProjectEmployeesTableTitle="Project Evaluators" 
+                                                         EvaluatorsTableTitle="Evaluators for this type"
+                                                         MoreProjectsEmployees="moreEmployees"
+                                                         ProjectEmployeesEvaluators="projectEmployeesEvaluators" UpdateEvaluatorsIdsList="UpdateEvaluatorsIdsList" />
+                        </div>
+                    }
+
+                    <CreateEvaluationTypesComponents HasAnyComponents="hasAnyComponents" @ref="createEvaluationTypesComponents"
+                                                 Components="components" IsUsingScoreValue=@model.IsUsingScoreValue
+                                                 EvaluationType="@model.EvaluationType" OnAddComponent="(componentscreated => components = componentscreated)" />
+                }
+            </div>
+
+            @if (model.EvaluationType is not null || !IsEditingType)
+            {
+                <RadzenButton class="icon" Style="margin:-5px 0px 15px 21px"
+                          ButtonType="ButtonType.Submit"
+                          Icon="save" />
+            }
+
+        </RadzenTemplateForm>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+
+
+

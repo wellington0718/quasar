@@ -1,0 +1,52 @@
+﻿@page "/evaluators"
+@attribute [Authorize(Policy = "IsAdmin")]
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenPanel AllowCollapse="true" class="p-0 pb-4">
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Manage evaluators</strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+                <RadzenTemplateForm Data="project" Context="ManageEvaluator" InvalidSubmit="() => JSRuntime.ScrollToTop(radzenBody)" TItem="Project" Submit="UpdateEvaluators">
+                    <div class="row mx-2 justify-content-between">
+                        <div class="col-sm-12 mt-4 rz-custom-selector  col-lg-5 ">
+                            <RadzenLabel Text="Project" />
+                            <RadzenDropDownDataGrid class="w-100" Change="OnSelectedProject" AllowFiltering=true
+                                                    TValue=string AllowSorting=true FilterDelay=1
+                                                    Placeholder="Choose"
+                                                    AllowClear="true"
+                                                    @bind-Value="@project.Id"
+                                                    FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
+                                                    Data=projects TextProperty=Name Name="Project" ValueProperty=Id />
+                            <RadzenRequiredValidator Component="Project" Text="Project field is required" Popup=true Style="position: absolute" />
+                        </div>
+
+                        <div class="pl-3">
+                            <EditProjectEvaluationTypeEvaluators @ref="EditProjectEvaluationTypeEvaluators"
+                                                                 UpdateEvaluatorsIdsList="UpdateEvaluatorsIdsList"
+                                                                 ProjectEmployeesEvaluators="projectEmployees"
+                                                                 MoreProjectsEmployees="moreEmployees"
+                                                                 ProjectEmployeesTableTitle="Project employees"
+                                                                 EvaluatorsTableTitle="Project evaluators"
+                                                                 ProjectEvaluationTypeEvaluators="projectEvaluators" />
+                        </div>
+                    </div>
+                    <div class="mt-4 ml-3 pl-2">
+                        <RadzenButton class="icon"
+                                      ButtonType="ButtonType.Submit"
+                                      Icon="save" />
+                    </div>
+                </RadzenTemplateForm>
+            </ChildContent>
+        </RadzenPanel>
+
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+

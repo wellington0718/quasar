@@ -1,0 +1,118 @@
+﻿<ErrorBoundary>
+    <ChildContent>
+
+        <RadzenTemplateForm TItem="EvaluationDTO" Data="SelectedEvaluationDTO" Submit=@EditEvaluation>
+            <div class="row">
+                <div class="col-lg-6 rz-custom-selector mb-1">
+                    <RadzenLabel Text="Evaluator" class="d-block form-label p-2" />
+                    <RadzenTextBox class="w-100" Disabled=true Value="@SelectedEvaluationDTO.EvaluatorIdCommonName" />
+                </div>
+                <div class="col-lg-6 rz-custom-selector mb-1">
+                    <RadzenLabel Text="Evaluation date" class="d-block form-label p-2" />
+                    <RadzenDatePicker class="w-100" TValue="DateTime" @bind-Value=SelectedEvaluationDTO.OriginalDate
+                                      AllowInput=false DateFormat="MM/dd/yyyy" Max="DateTime.Today.Date" />
+                </div>
+                <div class="col-lg-6 rz-custom-selector">
+                    <RadzenLabel Text="Agent" class="d-block form-label p-2" />
+                    <RadzenDropDownDataGrid class="w-100" Title="Customer ID" Name="Agent" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" ValueChanged="OnAgentValueChange"
+                                            Value="selectedAgent" TValue="Employee" Data="@agents" Placeholder="Choose" TextProperty="IdName">
+                        <Columns>
+                            <RadzenDropDownDataGridColumn Property="IdName" Type="typeof(string)" Title="Id-Name"/>
+                        </Columns>
+                    </RadzenDropDownDataGrid>
+                    <RadzenRequiredValidator Component="Agent" Text="Edition notes is required" Popup=true />
+                </div>
+
+                <div class="col-lg-6 rz-custom-selector">
+                    <RadzenLabel Text="Evaluation type" class="d-block form-label p-2" />
+                    <RadzenDropDownDataGrid class="w-100" Name="EvaluationType" ValueChanged="OnEvaluationTypeValueChange"
+                                            Value="SelectedEvaluationDTO.EvaluationTypeName" TValue="EvaluationType" Data="@evaluationTypes" Placeholder="Choose" TextProperty="Name" />
+                    <RadzenRequiredValidator Component="EvaluationType" Text="Edition notes is required" Popup=true />
+                </div>
+
+
+                <div class="col-sm-6 rz-custom-selector col-lg-3">
+                    <RadzenLabel Text="Case number" class="d-block form-label p-2" />
+                    <RadzenTextBox class="w-100" @bind-Value="SelectedEvaluationDTO.CaseNumber" />
+                </div>
+
+                <div class="col-sm-6 rz-custom-selector col-lg-3">
+                    <RadzenLabel Text="Account number" class="d-block form-label p-2" />
+                    <RadzenTextBox class="w-100" @bind-Value="SelectedEvaluationDTO.AccountNumber" />
+                </div>
+
+                <div class="col-sm-6 rz-custom-selector col-lg-2">
+                    <RadzenLabel Text="Score" class="d-block form-label p-2" />
+                    <RadzenNumeric class="w-100" Disabled=true Value="SelectedEvaluationDTO.Score" />
+                </div>
+                <div class="col-sm-6 col-lg-4 rz-custom-selector">
+                    <RadzenLabel Text="Comments" class="d-block form-label p-2" />
+                    <RadzenTextBox class="w-100" Name="Comments" @bind-Value="SelectedEvaluationDTO.Comments" />
+                    <RadzenRequiredValidator Component="Comments" Text="Comments is required" Popup=true />
+                </div>
+
+                <div class="col-sm-6 col-lg-6 rz-custom-selector">
+                    <RadzenLabel Text="Edition notes" class="d-block form-label p-2" />
+                    <RadzenTextBox class="w-100" Name="EditionNotes" @bind-Value="SelectedEvaluationDTO.EditionNotes" />
+                    <RadzenRequiredValidator Component="EditionNotes" Text="Edition notes is required" Popup=true />
+                </div>
+            </div>
+            <div class="w-100">
+                <div class="row mb-3">
+                    <div class="col-sm-6 col-lg-12">
+                        <h4 class="panel-header">Deductions</h4>
+                    </div>
+                </div>
+
+                <div style="max-height:300px; overflow:hidden scroll" class="pr-2">
+                    @foreach (var component in SelectedEvaluationDTO.EvaluationScoreDetails)
+                    {
+                        <div class="row align-items-center w-100 justify-content-between pr-4">
+                            <div class="col-12 col-sm-7">
+                                <RadzenTextBox class="w-100" Disabled=true Value="@component.ComponentName" />
+                            </div>
+
+                            @if (SelectedEvaluationDTO.IsUsingScoreValue)
+                            {
+                                <div class="col-7 col-sm-4 col-lg-3 col-xl-2">
+                                    <RadzenNumeric class="w-100 mb-0" TValue="int"
+                                           Change="UpdateScore" @bind-Value="component.ComponentValue"
+                                           Name="@component.ComponentName" />
+                                    <RadzenNumericRangeValidator Component="@component.ComponentName" Min="0" Text="This value cannot be less then zero" Popup=true />
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="col-2 h-100">
+                                    <RadzenRadioButtonList Value=@component.Fufilled
+                                                   ValueProperty="Fufilled"
+                                                   ValueChanged="((value) => OnRadioButtonChanged(value, component))"
+                                                   TValue="bool" class="d-flex justify-content-center">
+                                        <Items>
+                                            <RadzenRadioButtonListItem Text="Yes" Value="true" />
+                                            <RadzenRadioButtonListItem Text="No" Value="false" />
+                                        </Items>
+                                    </RadzenRadioButtonList>
+                                </div>
+                            }
+                        </div>
+                        <hr/>
+                    }
+                </div>
+            </div>
+            <div class="col-md-12 gap-3 mt-4 ml-3 d-flex justify-content-end">
+                <RadzenButton ButtonStyle="ButtonStyle.Secondary" ButtonType="ButtonType.Submit" Icon="save" Text="Save" />
+                <RadzenButton ButtonStyle="ButtonStyle.Light" Icon="cancel" Text="Close" Click="(() => DialogService.Close(false))" />
+            </div>
+        </RadzenTemplateForm>
+
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+}

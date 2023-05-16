@@ -1,0 +1,58 @@
+﻿
+<style>
+    .spinner {
+        margin: 100px auto;
+        animation: spinner 0.9s infinite ease-in-out;
+    }
+
+    @@keyframes spinner {
+        to {
+            transform: scale(1.1)
+        }
+    }
+
+    .rz-dialog-mask {
+        background: #333;
+        opacity:1;
+    }
+
+    .rz-dialog-wrapper {
+        z-index: 5000 !important;
+    }
+
+        .rz-dialog-wrapper .rz-dialog {
+            max-height: 50px;
+            border-radius: 100%;
+            max-width: 50px;
+            border: 1px solid #FFF;
+            min-height: 100px !important;
+            min-width: 100px !important;
+            margin: 0 auto;
+        }
+
+    img {
+        position: relative;
+        left: -25px;
+        top: -120px;
+        width: 100px;
+    }
+
+    .rz-dialog-wrapper .rz-dialog-content {
+        overflow: hidden;
+    }
+
+    .rz-dialog-titlebar {
+        display: none;
+    }
+
+    #loader {
+        width: 50px;
+        margin: auto;
+    }
+
+</style>
+
+<div id="loader">
+     <RadzenImage Path="images/logo.png" class="spinner" />
+</div>
+

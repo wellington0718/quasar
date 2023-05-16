@@ -1,0 +1,41 @@
+﻿<style>
+    .employeesTable.rz-datatable td {
+        cursor: pointer;
+    }
+
+    input.rz-textbox{
+        width:300px !important;
+    }
+</style>
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenDataGrid class="employeesTable" Page="OnPage" id="employeesGrid" @ref="EmployeesGrid" AllowFiltering="true" ValueChanged="HandleRowSelectedValueChanged"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowPaging="true" FilterMode="FilterMode.Simple" Value="SelectedEmployees"
+                        FilterDelay="1" AllowRowSelectOnRowClick="true" SelectionMode="DataGridSelectionMode.Multiple"AllowColumnResize="true" IsLoading="false" 
+                        AllowSorting="true" PageNumbersCount=3 Data="@Employees" TItem="Employee" ColumnWidth="200px">
+            <Columns>
+                <RadzenDataGridColumn Width="40px" CssClass="" MinWidth="30px" TItem="Employee" Sortable="false" Filterable="false">
+                    <HeaderTemplate>
+                        <RadzenCheckBox TriState="true" TValue="bool?" Value="checkAllState"
+                                        Change="HandleCheckAllStateChanged" />
+                    </HeaderTemplate>
+                    <Template Context="employee">
+                        <RadzenCheckBox Value="@(SelectedEmployees != null && SelectedEmployees.Contains(employee))"
+                                        TValue="bool" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Employee" Title="@ColumnTitle" Property="IdName">
+                    <FooterTemplate>
+                        @(pagingSummary)
+                    </FooterTemplate>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>

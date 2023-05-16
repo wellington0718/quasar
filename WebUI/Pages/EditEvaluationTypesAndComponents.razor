@@ -1,0 +1,14 @@
+﻿@page "/evaluationtypes/edit"
+@attribute [Authorize(Policy = "IsAdmin")]
+<RadzenPanel AllowCollapse="true" class="p-0">
+    <HeaderTemplate>
+        <h4 class="panel-header">
+            <strong>Edit evaluation type</strong>
+        </h4>
+    </HeaderTemplate>
+    <ChildContent>
+        <EvaluationTypeEditForm IsEditingType="true" />
+    </ChildContent>
+</RadzenPanel>
+
+

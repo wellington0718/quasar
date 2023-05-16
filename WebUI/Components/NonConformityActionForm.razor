@@ -1,0 +1,111 @@
+﻿@inject DialogService DialogService
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenTemplateForm Context="NonConformityAction" TItem="NonConformityAction" Data=@Model Submit="AddActions">
+            <RadzenStack>
+                @if(!IsEditing)
+                {
+                    <h4 class="mb-2 w-100 text-center p-2" style="background:#262526; color:#FFF">Action to take</h4>                    
+                }
+
+                <RadzenRow>
+                    <RadzenColumn Style="position: relative; z-index:100">
+                        <RadzenLabel Text="Action type" class="d-block position-relativeive" />
+                        <RadzenDropDownDataGrid Name="ActionType" class="w-100" Placeholder="Select" @bind-Value=Model.Type TValue="string"
+                                                Data=@(new List<string>(){ "Corrective", "Preventive" }) />
+
+                        <RadzenRequiredValidator Component="ActionType" Text="Action type is required" Popup=true Style="position: absolute" />
+
+                    </RadzenColumn>
+
+                    <RadzenColumn Style="position: relative; z-index:100">
+                        <RadzenLabel Text="Responsible" />
+                        <RadzenDropDownDataGrid Name="Responsible" class="w-100" @bind-Value=Model.Responsible Change="OnResponsibleChnage"
+                                                TextProperty="IdCommonName" Placeholder="Select" FilterOperator="StringFilterOperator.Contains"
+                                                TValue="Employee" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowFiltering="true"
+                                                Data=@Employees>
+
+                            <Columns>
+                                <RadzenDropDownDataGridColumn Property="IdCommonName" Type="typeof(string)" Title="Responsible" />
+                            </Columns>
+                        </RadzenDropDownDataGrid>
+                        <RadzenRequiredValidator Component="Responsible" Text="Responsible is required" Popup=true Style="position: absolute" />
+                    </RadzenColumn>
+
+                    <RadzenColumn>
+                        <RadzenLabel Text="State" />
+                        <RadzenDropDownDataGrid Name="ActionState" class="w-100 m-0" Placeholder="Select" @bind-Value=Model.State TValue="string"
+                                                Data=@(new List<string>(){ "In Process", "Closed" }) />
+                    </RadzenColumn>
+
+                    <RadzenColumn>
+                        <RadzenLabel Text="Expected date" />
+                        <RadzenDatePicker Name="ExpectedDate" class="w-100" @bind-Value=Model.ExpectedDate AllowInput=false DateFormat="MM/dd/yyyy" />
+                    </RadzenColumn>
+                    
+                </RadzenRow>
+
+                <RadzenRow class="mt-2">
+                    <RadzenColumn>
+                        <RadzenLabel Text="Description" class="d-block pl-2" />
+                        <RadzenTextArea Name="ActionDescripción" class="w-100" Rows="3" @bind-Value=Model.Description />
+                    </RadzenColumn>
+
+                    <RadzenColumn>
+                        <RadzenLabel Text="Verification" class="d-block" />
+                        <RadzenTextArea Name="Verification" class="w-100" Rows="3" @bind-Value=Model.Verification />
+                    </RadzenColumn>
+                </RadzenRow>
+
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                    <RadzenStack Orientation="Orientation.Horizontal">
+                        @if (IsEditing)
+                        {
+                            <RadzenButton Text="Save" Icon="save" Click="() => DialogService.Close(true)" Style="width: 80px;" />
+                            <RadzenButton Text="Cancel" Icon="cancel" Click="() => DialogService.Close(false)" ButtonStyle="ButtonStyle.Danger" />
+                        }
+                        else
+                        {
+                            <RadzenButton Text="Add" class="mb-2" ButtonType="ButtonType.Submit" Icon="add" Size="ButtonSize.Medium" />
+                        }
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+
+@code {
+    [CascadingParameter]
+    private Error? Error { get; set; }
+
+    [Parameter]
+    public NonConformityAction Model { get; set; } = new();
+
+    [Parameter]
+    public List<Employee> Employees { get; set; } = new();
+
+    [Parameter]
+    public bool IsEditing { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddActions { get; set; }
+
+    public async Task AddActions()
+    {
+        await OnAddActions.InvokeAsync();
+    }
+
+    private void OnResponsibleChnage(object selectedResponsible)
+    {
+        Model.ResponsibleName = ((Employee)selectedResponsible).IdCommonName;
+    }
+
+}

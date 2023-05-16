@@ -1,0 +1,49 @@
+﻿@page "/evaluations/search"
+
+<PageTitle>Quasar | search evaluations</PageTitle>
+
+<ErrorBoundary>
+    <ChildContent>
+
+        <AlertNotification Type="info"
+                           Message="For efficiency reasons, searches are limited to only 1000 entries at a time. Use the filters for a more specific search." />
+
+        <RadzenPanel AllowCollapse="true" class="mb-4 p-0">
+
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Evaluations filters</strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="wrapper mx-3">
+                    <SearchEvaluationsFilters Model=model IsReportSearch=false/>
+
+                    <RadzenButton class="icon mb-3 mt-n2"
+                                  Click="HandleSearchEvaluations"
+                                  ButtonType="ButtonType.Submit"
+                                  Icon="search" />
+                </div>
+
+            </ChildContent>
+        </RadzenPanel>
+
+        <EvaluationsTable EvaluationDTOs="EvaluationDTOs"
+                          EvaluationStateFilter="@model.State"
+                          ShowEvaluator="true"
+                          ShowExportButtons="true">
+            <h4 class="panel-header mb-3">
+                <strong>Evaluations</strong>
+            </h4>
+        </EvaluationsTable>
+
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+
+

@@ -1,0 +1,39 @@
+﻿<ErrorBoundary>
+    <ChildContent>
+        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Export XLS" Icon="grid_on" Click="ExportExcel" Class="mb-4 mr-2" />
+        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Export CSV" Icon="wrap_text" Click="ExportCSV" Class="mb-4" />
+
+        <RadzenDataGrid AllowFiltering="true" Page="@OnPage" @ref="evaluationChangesHistoryGrid" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowPaging="true"
+                        FilterMode="FilterMode.Simple" FilterDelay="1" AllowColumnResize="true" AllowSorting="true" Data="@EvaluationChangesHistory"
+                        TItem="EvaluationDTO" ColumnWidth="200px">
+            <Columns>
+                <RadzenDataGridColumn Width="300px" TItem="EvaluationDTO" Title="Modification date" Property="ModificationDate" SortOrder="SortOrder.Ascending" FormatString="{0:MM/dd/yyyy hh:mm:ss tt}">
+                    <FooterTemplate>
+                        @(pagingSummary)
+                    </FooterTemplate>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Evaluation date" Property="OriginalDate" FormatString="{0:MM/dd/yyyy}" />
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Evaluation type" Property="EvaluationTypeName" />
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Agent" Property="AgentIdCommonName" />
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Evaluator" Property="EvaluatorIdCommonName" />
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Editor" Property="EditorIdCommonName" />
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Case number" Property="CaseNumber" />
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Account number" Property="AccountNumber" />
+                <RadzenDataGridColumn TItem="EvaluationDTO" Type="typeof(string)" Property="Score" Title="Score" />
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Comments" Property="Comments" />
+
+                <RadzenDataGridColumn TItem="EvaluationDTO" Title="Edition notes" Property="EditionNotes" />
+            </Columns>
+        </RadzenDataGrid>
+        <div class="col-md-12 mt-2 d-flex justify-content-end">
+            <RadzenButton ButtonStyle="ButtonStyle.Light" Icon="cancel" Text="Close" Click="(() => DialogService.Close())" />
+        </div>
+
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+

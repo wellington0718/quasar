@@ -1,0 +1,84 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
+<RadzenDialog/>
+<RadzenNotification/>
+<RadzenContextMenu/>
+<RadzenTooltip/>
+
+<style>
+    .blazored-toast {
+        width: fit-content;
+    }
+
+    .blazored-toast-container {
+        z-index: 1000;
+    }
+
+    .header.rz-header {
+        box-shadow: 0 2px 36px 0px rgba(0,0,0,0.2)
+    }
+
+</style>
+
+<BlazoredToasts Position="ToastPosition.BottomCenter"
+                RemoveToastsOnNavigation="true"
+                Timeout="((int)TimeSpan.FromDays(1).TotalMinutes)"
+                IconType="IconType.FontAwesome"
+                ErrorIcon="fas fa-exclamation-triangle"
+                ShowCloseButton="@true">
+</BlazoredToasts>
+
+<RadzenLayout>
+    <AuthorizeView>
+        <Authorized>
+            <AppBar OnSideBarToggle="OnSideBarToggle" />
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView>
+        <Authorized>
+            <RadzenBody @bind-Expanded="@bodyExpanded" id="radzenBody" style="overflow-y:scroll">
+                <ChildContent>
+                    <RadzenContentContainer Name="main">
+                                <div class="container-md">
+                                    @Body
+                                </div>
+                    </RadzenContentContainer>
+                </ChildContent>
+            </RadzenBody>
+        </Authorized>
+        <NotAuthorized>
+            @{
+                NavigationManager.NavigateTo("/quasar/login", true);
+            }
+        </NotAuthorized>
+    </AuthorizeView>
+    <AuthorizeView>
+        <Authorized>
+            <RadzenSidebar @bind-Expanded="sidebarExpanded" Style="width:300px" Responsive="true">
+                <NavMenu />
+            </RadzenSidebar>
+            <RadzenFooter>
+                <ChildContent>
+                    <RadzenLabel class="w-100 d-block p-0 text-center text-muted" Text="@footerText" />
+                </ChildContent>
+            </RadzenFooter>
+        </Authorized>
+    </AuthorizeView>
+</RadzenLayout>
+
+@code {
+
+    bool sidebarExpanded = true;
+    bool bodyExpanded = false;
+    [CascadingParameter]
+    private Error? Error { get; set; }
+    private readonly string footerText = $"Synergies Corp. Ⓒ {@DateTime.Now.Year}";
+
+    private void OnSideBarToggle(bool isExpanded)
+    {
+        sidebarExpanded = isExpanded;
+        bodyExpanded = !sidebarExpanded;
+    }
+}

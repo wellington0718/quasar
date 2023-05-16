@@ -1,0 +1,143 @@
+﻿<style>
+    .rz-calendar-inline {
+        overflow: initial !important;
+    }
+
+    @@media(max-width:884px) {
+        .rz-overlaypanel {
+            left: 250px !important;
+        }
+    }
+
+    @@media(max-width:734px) {
+        .rz-overlaypanel {
+            left: 10px !important;
+            top: 450px !important;
+            width: 580px !important;
+        }
+    }
+
+    @@media(max-width:534px) {
+        .rz-calendar-inline {
+            overflow: auto !important;
+        }
+
+        .rz-overlaypanel {
+            left: 10px !important;
+            top: 50px;
+            width: 470px !important;
+            top: 80px !important;
+        }
+
+        .rz-date-filter .rz-listbox {
+            margin: 0.5rem !important;
+        }
+    }
+</style>
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenPanel AllowCollapse="true" class="p-0 pb-4">
+            <HeaderTemplate>
+                @ChildContent
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="mx-3 mb-2">
+
+                    <RadzenButton Visible="ShowExportButtons" ButtonStyle="ButtonStyle.Light" Text="Export XLS" Icon="grid_on" Click="ExportExcel" Class="mb-4 mr-2" />
+                    <RadzenButton Visible="ShowExportButtons" ButtonStyle="ButtonStyle.Light" Text="Export CSV" Icon="wrap_text" Click="ExportCSV" Class="mb-4" />
+
+                    <RadzenDataGrid class="mt-n2" @ref="evaluationsGrid" Page="@OnPage" AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowPaging="true"
+                                    FilterMode="FilterMode.Simple" FilterDelay="1" AllowColumnResize="true" IsLoading="false" AllowSorting="true" Data="@EvaluationDTOs" TItem="EvaluationDTO" ColumnWidth="200px">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="EvaluationDTO" Width="300px" Property="OriginalDate" Title=" Evaluation date" FormatString="{0:MM/dd/yyyy}">
+                                <FooterTemplate>
+                                    @(pagingSummary)
+                                </FooterTemplate>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="EvaluationDTO" Property="EvaluationTypeName" Title="Evaluation type" />
+                            <RadzenDataGridColumn TItem="EvaluationDTO" Property="AgentIdCommonName" Title="Agent" />
+                            <RadzenDataGridColumn Visible="ShowEvaluator" Property="EvaluatorIdCommonName" TItem="EvaluationDTO" Title="Evaluator" />
+                            <RadzenDataGridColumn TItem="EvaluationDTO" Property="CaseNumber" Title="Case number" />
+                            <RadzenDataGridColumn TItem="EvaluationDTO" Property="AccountNumber" Title="Account number" />
+                            <RadzenDataGridColumn TItem="EvaluationDTO" Property="Comments" Title="Comments" />
+                            <RadzenDataGridColumn TItem="EvaluationDTO" Type="typeof(int)" Title="Score" SortProperty="Score">
+                                <Template Context="evaluationDTO">
+
+                                    @{
+                                        if (evaluationDTO.IsUsingScoreValue)
+                                        {
+                                            if (evaluationDTO.Score < 100)
+                                            {
+                                                <div class="d-flex justify-content-evenly pointer" @onclick="(() => ShowEvaluationScoreDetails(evaluationDTO))">
+                                                    @(evaluationDTO.Score)
+
+                                                    <RadzenLink @onclick:preventDefault="true" Text="See details" />
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span style="margin-left:30px">@(evaluationDTO.Score)</span>
+                                            }
+                                        }
+
+                                        else
+                                        {
+                                            if (evaluationDTO.Score < 100)
+                                            {
+                                                <div class="d-flex justify-content-evenly pointer" @onclick="(() => ShowEvaluationScoreDetails(evaluationDTO))">
+                                                    @(evaluationDTO.Score)
+
+                                                    <RadzenLink @onclick:preventDefault="true" Text="See details" />
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span style="margin-left:30px">@(evaluationDTO.Score)</span>
+                                            }
+                                        }
+                                    }
+                                </Template>
+                            </RadzenDataGridColumn>
+
+                            @if (showActionButtons || isUserEvaluator)
+                            {
+                                <RadzenDataGridColumn TItem="EvaluationDTO" Property="EnabledString" Title="Enabled" TextAlign="TextAlign.Center" Sortable="false" Filterable="false" Width="70px" />
+                                <RadzenDataGridColumn TItem="EvaluationDTO" Property="EditedString" Title="Edited" TextAlign="TextAlign.Center" Sortable="false" Filterable="false" Width="70px" />
+
+                                <RadzenDataGridColumn TItem="EvaluationDTO" Property="Edited" Title="History" TextAlign="TextAlign.Center" Sortable="false" Filterable="false" Width="70px">
+                                    <Template Context="evaluationDTO">
+                                        <RadzenButton title="See history" Visible="evaluationDTO.Edited" Icon="history" ButtonStyle="ButtonStyle.Info" Class="m-1" Click="@(args => ShowEvaluationHistory(evaluationDTO))" @onclick:stopPropagation="true" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+
+                                <RadzenDataGridColumn TItem="EvaluationDTO" Width="70px" Filterable="false" Sortable="false" TextAlign="TextAlign.Center">
+
+                                    <Template Context="evaluationDTO">
+                                        <RadzenButton Icon="edit" title="Edit" ButtonStyle="ButtonStyle.Light" Class="m-1" Click="@(args => EditRow(evaluationDTO))" @onclick:stopPropagation="true" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+
+                                <RadzenDataGridColumn TItem="EvaluationDTO" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Width="70px">
+                                    <Template Context="evaluationDTO">
+                                        <RadzenButton Visible="evaluationDTO.Enabled" Icon="unpublished" title="Disable" ButtonStyle="ButtonStyle.Danger" Class="m-1" Click="(arg => ChangeEvaluationState(evaluationDTO))" @onclick:stopPropagation="true" />
+                                        <RadzenButton Visible="@(!evaluationDTO.Enabled)" Icon="published_with_changes" title="Enable" ButtonStyle="ButtonStyle.Success" Class="m-1" Click="(arg => ChangeEvaluationState(evaluationDTO))" @onclick:stopPropagation="true" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            }
+                        </Columns>
+                    </RadzenDataGrid>
+                </div>
+            </ChildContent>
+
+        </RadzenPanel>
+
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+

@@ -1,0 +1,13 @@
+﻿<RadzenCard class="p-0 m-3">
+    <h4 class="panel-header">Agent stats by evaluation type</h4>
+
+    <div class="row justify-content-start">
+        @ChildContent
+    </div>
+
+</RadzenCard>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

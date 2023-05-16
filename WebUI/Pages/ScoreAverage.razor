@@ -1,0 +1,217 @@
+﻿@page "/scoreaverage"
+
+@attribute [Authorize(Policy = "IsModerator")]
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenPanel AllowCollapse="true" class="mb-4 p-0">
+
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Report filters</strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+                <RadzenTemplateForm Data="model" TItem="EvaluationDTO" Submit="HandleSearchEvaluationsReport">
+                    <div class="wrapper mx-3">
+                        <SearchEvaluationsFilters Model=model IsReportSearch=true OnSelectedReportType=ClearTables />
+
+                        <RadzenButton class="icon mb-3 mt-n2"
+                                      Click="HandleSearchEvaluationsReport"
+                                      ButtonType="ButtonType.Submit"
+                                      Icon="search" />
+                    </div>
+                </RadzenTemplateForm>
+            </ChildContent>
+        </RadzenPanel>
+
+        @if (model.ReportType is not null)
+        {
+            @if (model.ReportType.Equals("Agents") && qualityRateDTOs is not null)
+            {
+                <AgentsEvaluationsReportTable AgentsEvaluationsReport=qualityRateDTOs OnRowSelected=OnRowSelect />
+            }
+
+            @if (model.ReportType.Equals("Evaluation type") && qualityRateDTOs is not null)
+            {
+                <EvaluationTypeReport EvaluationTypesReport=qualityRateDTOs OnRowSelected=OnRowSelect IsGeneralReport=false/>
+            }
+
+            @if (model.ReportType.Equals("General") && qualityRateDTOs is not null)
+            {
+                <EvaluationTypeReport EvaluationTypesReport=qualityRateDTOs OnRowSelected=OnRowSelect IsGeneralReport=true/>
+            }
+        }
+
+        @if (evaluationDTOs.Any())
+        {
+            <EvaluationsTable EvaluationDTOs="evaluationDTOs"
+                          ShowEvaluator="true"
+                          ShowExportButtons="true">
+                <h4 class="panel-header mb-3">
+                    <strong>Evaluations</strong>
+                </h4>
+            </EvaluationsTable>
+        }
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+
+    [CascadingParameter]
+    private Error? Error { get; set; }
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+    [Inject]
+    private IEvaluationUseCases? EvaluationUseCases { get; set; }
+    [Inject]
+    private IEvaluatorProjectUseCases? EvaluatorProjectUseCases { get; set; }
+    [Inject]
+    private IEvaluationTypesUseCases? EvaluationTypesUseCases { get; set; }
+    [Inject]
+    private DialogService? DialogService { get; set; }
+    private List<EvaluationDTO> evaluationDTOs { get; set; } = new();
+    private List<QualityRateDTO>? qualityRateDTOs = new();
+    private bool hasSearchByProjectsPermission;
+    private EvaluationDTO model = new();
+    private List<string>? employeePermissions = new();
+    private string? userProjectId;
+    private string? userId;
+    private string companies = string.Empty;
+    private bool isDateRangeInValid;
+
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            DialogService?.Open<Loading>(null);
+
+            userId = (await AuthenticationState)
+           .User.Claims.First(claim => claim.Type == ClaimTypes.NameIdentifier).Value;
+
+            employeePermissions = (await EvaluatorProjectUseCases.GetEmployeePermissionsAsync(userId)).ToList();
+
+            hasSearchByProjectsPermission = employeePermissions.Contains(nameof(Permissions.SEARCH_EVALUATIONS_BY_PROJECT));
+            userProjectId = (await EvaluatorProjectUseCases?.GetEmployeesAsync(new { EmployeeId = userId })).FirstOrDefault().ProjectId;
+
+            DialogService.Close();
+            StateHasChanged();
+        }
+    }
+
+    private async Task GetEvaluationScoreDetails()
+    {
+        foreach (var evaluationDTO in evaluationDTOs)
+        {
+            evaluationDTO.EvaluationScoreDetails =
+                (await EvaluationUseCases.GetEvaluationScoreDetailAsync(new { evaluationDTO.IsUsingScoreValue, EvaluationId = evaluationDTO.Id })).ToList();
+
+            var score = 100;
+
+            if (evaluationDTO.IsUsingScoreValue)
+            {
+                evaluationDTO.Score = score -= evaluationDTO.EvaluationScoreDetails.Sum(e => e.ComponentValue);
+            }
+            else
+            {
+                evaluationDTO.Score = evaluationDTO.EvaluationScoreDetails.Any(e => !e.Fufilled) ? 0 : score;
+            }
+        }
+    }
+
+    private async Task HandleSearchEvaluationsReport()
+    {
+        if (isDateRangeInValid) return;
+
+        DialogService?.Open<Loading>(null);
+        ClearTables();
+
+        var loggedInUserId = hasSearchByProjectsPermission ? model.EvaluatorId : userId;
+        if (string.IsNullOrEmpty(model.ProjectId) && model.Projects is not null)
+        {
+            var projectIdIds = model.Projects.Select(p => p.Id).ToList();
+
+            userProjectId = string.Join(",", projectIdIds);
+        }
+        else
+        {
+            userProjectId = model.ProjectId;
+        }
+
+        dynamic parameters = new
+        {
+            ProjectId = userProjectId,
+            StartDate = model.DateTimeRange.Start,
+            EndDate = model.DateTimeRange.End,
+            model.AgentId,
+            model.AgentName,
+            userId = loggedInUserId,
+            model.EvaluatorId,
+            model.EvaluatorName,
+            model.CaseNumber,
+            model.AccountNumber,
+            model.EvaluationTypeId,
+            ISErrorsOnly = model.ReportType?.Equals("General")
+        };
+
+        qualityRateDTOs = model.ReportType switch
+        {
+            "Agents" => await EvaluationUseCases?.GetAgentsEvaluationsReportAsync(parameters),
+
+            "Evaluation type" => await EvaluationUseCases?.GetEvaluationsTypesReportAsync(parameters),
+
+            "General" => (await EvaluationUseCases?.GetGeneralReport(parameters)),
+            _ => new List<QualityRateDTO>() 
+        };
+
+        await GetEvaluationScoreDetails();
+        DialogService?.Close();
+    }
+
+
+    private void ClearTables()
+    {
+        qualityRateDTOs = null;
+        evaluationDTOs = new();
+    }
+
+    private async Task OnRowSelect(QualityRateDTO args)
+    {
+        DialogService?.Open<Loading>(null);
+
+        var agentId = string.IsNullOrEmpty(model.AgentId) ? args.AgentId : model.AgentId;
+        var agentName = string.IsNullOrEmpty(model.AgentName) ? args.AgentName : model.AgentName;
+        var evaluationTypeId = string.IsNullOrEmpty(model.EvaluationTypeId) ? args.EvaluationTypeId : model.EvaluationTypeId;
+        var loggedInUserId = hasSearchByProjectsPermission ? model.EvaluatorId : userId;
+        dynamic parameters = new
+        {
+            OriginalStartDate = model.DateTimeRange.Start,
+            OriginalEndDate = model.DateTimeRange.End,
+            agentId,
+            agentName,
+            userId = loggedInUserId,
+            ProjectId = userProjectId,
+            evaluationTypeId,
+            model.EvaluatorId,
+            model.EvaluatorName,
+            model.CaseNumber,
+            State = "Enabled",
+            model.AccountNumber,
+            IsErrorsOnly = model.ReportType?.Equals("General")
+        };
+
+        evaluationDTOs = await EvaluationUseCases.SearchEvaluationsAsync(parameters);
+
+        DialogService?.Close();
+    }
+
+    private void OnDateChanged()
+    {
+        isDateRangeInValid = model.DateTimeRange.IsDateRangeInValid();
+    }
+}

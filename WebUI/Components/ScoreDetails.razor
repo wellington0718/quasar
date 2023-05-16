@@ -1,0 +1,49 @@
+﻿<RadzenDataGrid Style="width:500px" class="mx-auto" AllowColumnResize="true" Data="@EvaluationScoreDetails" TItem="EvaluationScoreDetail">
+    <Columns>
+        @*<RadzenDataGridColumn TItem="EvaluationScoreDetail" Title="Agent">
+            <Template Context="details">
+                @(AgentIdName)
+            </Template>
+
+        </RadzenDataGridColumn>*@
+        <RadzenDataGridColumn TItem="EvaluationScoreDetail" Property="ComponentName" Title="Category"/>
+        <RadzenDataGridColumn TItem="EvaluationScoreDetail" TextAlign="TextAlign.Center" Width="100px" Title="Deduction"
+         Type="typeof(string)" Property="ComponentValue.ToString()">
+            <Template Context="details">
+                @if(IsUsingScoreValue)
+                {
+                    <span>-@details.ComponentValue</span>
+                }
+                else
+                {
+                    @if(!details.Fufilled)
+                    {
+                        <span class="d-flex justify-content-center">
+                            <RadzenIcon Icon="highlight_off" IconStyle="IconStyle.Danger"/>
+                        </span>
+                    }
+                }
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+@code {
+    [Parameter]
+    public IEnumerable<EvaluationScoreDetail>? EvaluationScoreDetails { get; set; }
+    [Parameter]
+    public bool IsUsingScoreValue { get; set; }
+    [Parameter]
+    public string? AgentIdName { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (IsUsingScoreValue)
+        {
+            EvaluationScoreDetails = EvaluationScoreDetails?.Where(evaluationScoreDetail => evaluationScoreDetail.ComponentValue > 0);
+        }
+        else
+        {
+            EvaluationScoreDetails = EvaluationScoreDetails?.Where(evaluationScoreDetail => !evaluationScoreDetail.Fufilled);
+        }
+    }
+}

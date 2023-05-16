@@ -1,0 +1,129 @@
+﻿@page "/login"
+
+@using WebUI.Components
+@using WebUI.Pages
+@model WebUI.Pages.UserLoginModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Quasar</title>
+
+    <link rel="icon" href="~/icons/logo.ico">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="~/css/bootstrap/bootstrap.min.css" />
+
+    <!-- bootstrap icons  -->
+    <link rel="stylesheet" href="~/css/icons/font/bootstrap-icons.css" />
+
+    <style>
+        .container-fluid {
+            background-image: radial-gradient(#96acb3, #214656);
+            min-height: 100vh;
+        }
+
+        #overlay {
+            z-index: 5000;
+            background: #272C34;
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: #FFF;
+            height: 100%;
+            width: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid h-100 d-flex align-items-center justify-content-center">
+        <div id="overlay">
+            <img src="~/images/logo.png" class="quasar-icon-loader" style="width:100px">
+        </div>
+
+        <div class="col-md-6 col-lg-4 shadow-lg rounded">
+            <div id="form-logo" class="text-center mt-5 mb-4">
+                <img style="width:300px" src="~/images/horizontal_logo_name.png" class="img-fluid" alt="quasar logo">
+            </div>
+            <form method="post" su>
+                <div class="p-4">
+
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" style="background: #018000ff">
+                            <i class="bi bi-person-fill text-white"></i>
+                        </span>
+                        <input autofocus type="text" class="form-control" asp-for="UserId" id="userName" required
+                               placeholder="User">
+                    </div>
+                    <div class="input-group mb-3">
+                        <span style="background: #018000ff; color:#FFF" class="input-group-text">
+                            <i class="bi bi-key-fill text-white"></i>
+                        </span>
+                        <input type="password" class="form-control" asp-for="Password" id="password" required placeholder="Password">
+                        <span style="background: #018000ff; color:#FFF" role="button" class="input-group-text"
+                              onclick="password_show_hide();">
+                            <i class="bi bi-eye-fill text-white" id="show_eye"></i>
+                            <i class="bi bi-eye-slash-fill text-white d-none" id="hide_eye"></i>
+                        </span>
+                    </div>
+
+                    @if (UserLoginModel.UserError is not null)
+                    {
+                        <div id="userError mt-5" class="alert alert-danger" role="alert">
+                            <span> @UserLoginModel.UserError</span>
+                        </div>
+                        UserLoginModel.UserError = null;
+                    }
+                    <div class="d-flex">
+                        <button onclick="showLoading();" style="background: #018000ff; color:#FFF"
+                                class="flex-grow-1 btn btn-lg login-btn" type="submit">
+                            Log in
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function password_show_hide() {
+
+            var passwordInput = document.getElementById("password");
+            var show_eye = document.getElementById("show_eye");
+            var hide_eye = document.getElementById("hide_eye");
+            hide_eye.classList.remove("d-none");
+
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                show_eye.style.display = "none";
+                hide_eye.style.display = "block";
+            } else {
+                passwordInput.type = "password";
+                show_eye.style.display = "block";
+                hide_eye.style.display = "none";
+            }
+        }
+
+        function showLoading() {
+            var userName = document.getElementById("userName").value;
+            var password = document.getElementById("password").value;
+            var overlay = document.getElementById("overlay");
+
+            if (userName != "" && password != "")
+                overlay.style.display = "flex"
+        }
+    </script>
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+    <script src="_framework/blazor.server.js"></script>
+
+</body>
+
+</html>

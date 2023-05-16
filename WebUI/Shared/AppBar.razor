@@ -1,0 +1,107 @@
+﻿@inject NavigationManager UriHelper
+@inject ThemeService ThemeService
+<style>
+    .logout-link {
+        color: #212529;
+    }
+
+    .logout-link:hover {
+        background: #28363C;
+        color: #FFF;
+    }
+
+    .top-nav-right-item {
+        text-decoration: none;
+        border: 1px solid transparent;
+        width: 50px;
+        padding: 20px 5px;
+        cursor: pointer;
+        font-size: 30px;
+    }
+
+    .top-nav-right-item:hover {
+        border: 1px solid #3A474D;
+        border-radius: 4px;
+        color: #212529;
+    }
+
+    .top-nav-item-text {
+        color: #212529;
+        font-size: 16px;
+        width: 100px;
+        text-align: center;
+        padding: 10px 5px;
+    }
+
+    .top-nav-brand:hover {
+        color: #50565c;
+        filter: brightness(1)
+    }
+
+    .top-nav-right ul.rz-profile-menu .rz-navigation-item-icon-children {
+        display: none;
+    }
+</style>
+
+<RadzenHeader>
+    <ChildContent>
+        <div class="d-flex align-items-center py-1">
+            <RadzenSidebarToggle
+                Click="@(async (args) => {sidebarExpanded = !sidebarExpanded; await OnSideBarToggle.InvokeAsync(sidebarExpanded);})" />
+            <div class="align-items-center">
+                <NavLink href="/quasar/" class="text-decoration-none">
+                    <RadzenImage Path="images/horizontal_logo_name.png" Style="width: 150px;" />
+                </NavLink>
+            </div>
+            <div class="top-nav-right mr-5 d-flex gap-4 align-items-center ml-auto ">
+
+                <AuthorizeView>
+                    <Authorized>
+                        <NavLink href="/quasar/logout/"
+                            class="top-nav-item-text top-nav-right-item text-uppercase text-decoration-none">
+                            log out
+                        </NavLink>
+                    </Authorized>
+                    <NotAuthorized>
+                        <NavLink href="/quasar/login/"
+                            class="top-nav-item-text top-nav-right-item text-uppercase text-decoration-none">
+                            log in
+                        </NavLink>
+                    </NotAuthorized>
+                </AuthorizeView>
+                                
+                <AuthorizeView>
+                    <Authorized>
+
+                        <RadzenProfileMenu class="p-0" tabindex="0">
+                            <Template>
+                                <RadzenIcon class="top-nav-right-item" Icon="person_outline" />
+                            </Template>
+                            <ChildContent>
+                                <RadzenCard class="px-0 profile">
+                                    <RadzenLabel class="p-2 mt-n4 border-bottom profile-name"
+                                        Text="@context.User.Identity.Name" />
+
+                                    <NavLink class="logout-link mt-2 mb-n2 text-decoration-none
+                                     d-flex align-items-center py-2 justify-content-evenly" href="/quasar/logout">
+                                        <RadzenIcon Icon="logout" Style="font-size:30px" />
+                                        <span>Log out</span>
+                                    </NavLink>
+                                </RadzenCard>
+                            </ChildContent>
+                        </RadzenProfileMenu>
+                    </Authorized>
+
+                </AuthorizeView>
+
+            </div>
+        </div>
+    </ChildContent>
+</RadzenHeader>
+
+@code {
+    bool sidebarExpanded = true;
+
+    [Parameter]
+    public EventCallback<bool> OnSideBarToggle { get; set; }    
+}

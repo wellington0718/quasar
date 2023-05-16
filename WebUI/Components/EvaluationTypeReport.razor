@@ -1,0 +1,392 @@
+﻿@using OfficeOpenXml;
+@using System.Reflection;
+@using OfficeOpenXml.Style;
+@using OfficeOpenXml.Table.PivotTable;
+@using OfficeOpenXml.Table;
+@using System.Text;
+<style>
+    .quality-rating-table.rz-datatable td {
+        cursor: pointer;
+    }
+
+    #showErrorCategories {
+        background: none;
+        color: #0A58CA;
+    }
+
+        #showErrorCategories:hover {
+            text-decoration: underline;
+        }
+</style>
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenPanel AllowCollapse="true" class="p-0 pb-4">
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Quality rate</strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+                <div class="mx-3 mb-2">
+
+                    <div class="flex mb-3 mt-2">
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Export XLS" BusyText="Exporting ..." IsBusy=@ExportXLSBusy Icon="grid_on" Click="ExportExcel" class="mr-2" />
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Export CSV" Icon="wrap_text" BusyText="Exporting ..." IsBusy=@ExportCSVBusy Click="ExportCSV" />
+                    </div>
+
+                    <RadzenDataGrid class="quality-rating-table" RowSelect="@OnRowSelect" AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    AllowPaging="true" SelectionMode="DataGridSelectionMode.Single" FilterMode="FilterMode.Simple" @bind-Value=selectedItems FilterDelay="1"
+                                    @ref="@qualityRateGrid"
+                                    AllowColumnResize="true" IsLoading="false" AllowSorting="true" Data="@EvaluationTypesReport.ToList()" TItem="QualityRateDTO" ColumnWidth="200px">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Property="AgentIdName" Title="Agent" Visible=IsGeneralReport />
+
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Property="ProjectName" Title="Project">
+                                <FooterTemplate>
+                                    @(pagingSummary)
+                                </FooterTemplate>
+                            </RadzenDataGridColumn>
+
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Property="Process" Title="Processes" />
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Type="typeof(string)" Property="OrdersAudited.ToString()" Title="Orders audited">
+                                <FooterTemplate>
+                                    @($"Total orders: {totalOrders}")
+                                </FooterTemplate>
+                            </RadzenDataGridColumn>
+
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Title="Error Category" Visible=IsGeneralReport>
+                                <Template Context="qualityRateDTO">
+                                    @{
+                                        if (qualityRateDTO.Errors > 0)
+                                        {
+                                            <RadzenButton id="showErrorCategories" class="d-flex justify-content-evenly"
+                                                      @onclick:stopPropagation=true
+                                                  Click="() => ShowEvaluationScoreDetails(qualityRateDTO)">
+                                                See details
+                                            </RadzenButton>
+                                        }
+                                    }
+
+                                </Template>
+                            </RadzenDataGridColumn>
+
+                            <RadzenDataGridColumn TItem="QualityRateDTO" Type="typeof(string)" Property="Errors.ToString()" Title="Errors">
+                                <FooterTemplate>
+                                    @($"Total Errors: {totalErrors}")
+                                </FooterTemplate>
+
+                            </RadzenDataGridColumn>
+
+                            <RadzenDataGridColumn TItem="QualityRateDTO" SortProperty="QualityRating" Type="typeof(string)" Property="QualityRating.ToString()" Title="Quality rating">
+                                <Template Context=qualityRateDTO>
+                                    @if (qualityRateDTO.OrdersAudited > 0)
+                                    {
+                                        if (IsGeneralReport)
+                                        {
+                                            var deduction = qualityRateDTO.EvaluationScoreDetails.Sum(c => c.ComponentValue);
+                                            qualityRateDTO.QualityRating = (decimal)(qualityRateDTO.OrdersAudited * 100 - deduction) / (decimal)qualityRateDTO.OrdersAudited;
+                                            @($"{(qualityRateDTO.QualityRating):F2}")
+                                        }
+                                        else
+                                        {
+                                            qualityRateDTO.QualityRating = qualityRateDTO.Score / qualityRateDTO.OrdersAudited;
+                                            @($"{(qualityRateDTO.QualityRating):F2}")
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @("N/A")
+                                    }
+
+                                </Template>
+                                <FooterTemplate>
+
+                                    @($"Quality avg.: {projectAvg}")
+                                </FooterTemplate>
+
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                </div>
+            </ChildContent>
+
+        </RadzenPanel>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+
+    [CascadingParameter]
+    private Error? Error { get; set; }
+
+    [Inject]
+    DialogService? DialogService { get; set; }
+    [Inject]
+    private IEvaluationUseCases? EvaluationUseCases { get; set; }
+    [Parameter]
+    public List<QualityRateDTO> EvaluationTypesReport { get; set; } = new();
+    [Inject]
+    private IJSRuntime? JSRuntime { get; set; }
+    [Inject]
+    private IFileBuilder? FileBuilder { get; set; }
+    [Parameter]
+    public EventCallback<QualityRateDTO> OnRowSelected { get; set; }
+    [Parameter]
+    public bool IsGeneralReport { get; set; }
+    private RadzenDataGrid<QualityRateDTO>? qualityRateGrid { get; set; }
+    private IList<QualityRateDTO>? selectedItems;
+    List<EvaluationScoreDetail>? evaluationScoreDetails;
+    private int totalOrders;
+    private int totalErrors;
+    private string? pagingSummary;
+    bool ExportXLSBusy;
+    bool ExportCSVBusy;
+    private string? projectAvg;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EvaluationTypesReport.Any())
+        {
+            decimal totalDeductions = 0;
+
+            if (IsGeneralReport)
+            {
+                EvaluationTypesReport = (from c in EvaluationTypesReport
+                                         group c by new { c.Process, c.EvaluationTypeId, c.ProjectId, c.ProjectName, c.AgentId, c.AgentName } into g
+                                         select new QualityRateDTO
+                                             {
+                                                 AgentId = g.Key.AgentId.TrimStart('0', ' '),
+                                                 AgentName = g.Key.AgentName,
+                                                 Process = g.Select(c => c.Process).FirstOrDefault(),
+                                                 OrdersAudited = g.Select(c => c.EvaluationId).Distinct().Count(),
+                                                 Errors = g.Select(c => c.ComponentValue).Count(),
+                                                 Score = g.Select(c => c.EvaluationId).Distinct().Count() * 100 - g.Select(c => c.ComponentValue).Sum(),
+                                                 ProjectId = g.Key.ProjectId,
+                                                 ProjectName = g.Key.ProjectName,
+                                                 EvaluationTypeId = g.Key.EvaluationTypeId,
+                                                 ErrorCategory = string.Join(Environment.NewLine, g.Select(c => $"{c.ComponentName}-{c.ComponentValue}")),
+                                                 EvaluationScoreDetails = g.Select(c => new EvaluationScoreDetail
+                                                 {
+                                                     ComponentName = c.ComponentName,
+                                                     ComponentValue = c.ComponentValue
+                                                 }).ToList()
+
+                                             }).ToList();
+
+            }
+
+            totalOrders = EvaluationTypesReport.Sum(qualityRateDTO => qualityRateDTO.OrdersAudited);
+            totalErrors = EvaluationTypesReport.Sum(qualityRateDTO => qualityRateDTO.Errors);
+
+            var currentPage = EvaluationTypesReport.Count > 0 ? qualityRateGrid?.CurrentPage + 1 : 0;
+            pagingSummary = $"Displaying page {currentPage} of {Math.Ceiling(EvaluationTypesReport.Count / 10m)} (total {EvaluationTypesReport.Count()} records)";
+
+            var scoreSum = EvaluationTypesReport.Sum(c => c.Score);
+            projectAvg = $"{(scoreSum / totalOrders):F2}";
+        }
+    }
+
+    private async void ShowEvaluationScoreDetails(QualityRateDTO qualityRateDTO)
+    {
+        var parameters = new Dictionary<string, object> { { "EvaluationScoreDetails", qualityRateDTO.EvaluationScoreDetails }, { "IsUsingScoreValue", true }, { "AgentIdName", qualityRateDTO?.AgentIdName ?? "" } };
+
+        if (DialogService is not null)
+            await DialogService.OpenAsync<ScoreDetails>("Score details", parameters, new DialogOptions { Style = "min-width:500px !important", CloseDialogOnOverlayClick = true });
+    }
+
+    private async Task ExportExcel()
+    {
+        if (!EvaluationTypesReport.Any())
+            return;
+
+        ExportXLSBusy = true;
+
+        using (ExcelPackage excelPackage = new())
+        {
+            switch (IsGeneralReport)
+            {
+                case true:
+                    await GeneralReport(excelPackage);
+                    break;
+                default:
+                    await QualityRateReport(excelPackage);
+                    break;
+            }
+        }
+        ExportXLSBusy = false;
+    }
+
+    private async Task QualityRateReport(ExcelPackage excelPackage)
+    {
+        ExcelWorksheet worksheet = excelPackage.Workbook.Worksheets.Add("Quality rate report");
+
+        var type = typeof(QualityRateDTO);
+        var props = new MemberInfo[]{
+                        type.GetProperty("Process"),
+                        type.GetProperty("OrdersAudited"),
+                        type.GetProperty("QualityRating"),
+                        type.GetProperty("Errors")
+     };
+
+        worksheet.Cells["A2"].LoadFromCollection(EvaluationTypesReport, p =>
+       {
+           p.PrintHeaders = false;
+           p.Members = props;
+       }).Sort(x => x.SortBy.Column(0));
+
+        worksheet.Cells["A1"].Value = "Process";
+        worksheet.Cells["B1"].Value = "Orders audited";
+        worksheet.Cells["C1"].Value = "Quality rating";
+        worksheet.Cells["D1"].Value = "Errors";
+
+        var lastRow = worksheet.Dimension.Rows + 2;
+        worksheet.Cells[$"D{lastRow}"].Value = $"Total orders : {totalOrders}";
+        worksheet.Cells[$"F{lastRow}"].Value = $"Total errors : {totalErrors}";
+        worksheet.Cells.AutoFitColumns();
+        var bytes = excelPackage.GetAsByteArray();
+        await JSRuntime?.SaveAs("Evaluation type report.xlsx", bytes);
+    }
+
+    private async Task GeneralReport(ExcelPackage excelPackage)
+    {
+        ExcelWorksheet GeneralWorksheet = excelPackage.Workbook.Worksheets.Add("General report");
+        ExcelWorksheet worksheetPivot = excelPackage.Workbook.Worksheets.Add("General Pivot Table");
+
+        Type type = typeof(QualityRateDTO);
+
+        var props = new MemberInfo[]{
+                        type.GetProperty("AgentId"),
+                        type.GetProperty("AgentName"),
+                        type.GetProperty("Process"),
+                        type.GetProperty("OrdersAudited"),
+                        type.GetProperty("QualityRating"),
+                        type.GetProperty("ErrorCategory"),
+                        type.GetProperty("Errors"),
+      };
+
+        GeneralWorksheet.Cells["A2"].LoadFromCollection(EvaluationTypesReport, p =>
+        {
+            p.PrintHeaders = false;
+            p.Members = props;
+        }).Sort(x => x.SortBy.Column(0));
+
+
+        GeneralWorksheet.Cells["A1"].Value = "Id";
+        GeneralWorksheet.Cells["B1"].Value = "Agent";
+        GeneralWorksheet.Cells["C1"].Value = "Process";
+        GeneralWorksheet.Cells["D1"].Value = "Orders audited";
+        GeneralWorksheet.Cells["E1"].Value = "Quality rating";
+        GeneralWorksheet.Cells["F1"].Value = "Error category";
+        GeneralWorksheet.Cells["G1"].Value = "Errors";
+
+
+        GeneralWorksheetStyle(GeneralWorksheet);
+
+        var dataRange = GeneralWorksheet.Cells[GeneralWorksheet.Dimension.Address];
+
+        ConfigureUpPivotTable(dataRange, worksheetPivot);
+
+        var bytes = excelPackage.GetAsByteArray();
+
+        if (JSRuntime is not null)
+            await JSRuntime.SaveAs("General report.xlsx", bytes);
+    }
+
+    private void ConfigureUpPivotTable(ExcelRange dataRange, ExcelWorksheet worksheetPivot)
+    {
+        var pivotTable = worksheetPivot.PivotTables.Add(worksheetPivot.Cells["A1"], dataRange, "General report pivot table");
+
+        var field = pivotTable.RowFields.Add(pivotTable.Fields["Agent"]);
+        pivotTable.DataOnRows = false;
+
+        field = pivotTable.RowFields.Add(pivotTable.Fields["Id"]);
+        field.Name = "Id";
+        field = pivotTable.RowFields.Add(pivotTable.Fields["Process"]);
+        field.Name = "Process";
+
+        field = pivotTable.RowFields.Add(pivotTable.Fields["Error category"]);
+        field.Name = "Error category";
+
+        var dataField = pivotTable.DataFields.Add(pivotTable.Fields["Orders audited"]);
+        dataField.Name = "Orders audited";
+
+        dataField = pivotTable.DataFields.Add(pivotTable.Fields["Quality rating"]);
+        dataField.Name = "Quality rating";
+        dataField.Function = DataFieldFunctions.Sum;
+        dataField.Format = "0.00";
+
+        dataField = pivotTable.DataFields.Add(pivotTable.Fields["Errors"]);
+        dataField.Name = "Errors";
+        dataField.Function = DataFieldFunctions.Sum;
+
+        pivotTable.PivotTableStyle = PivotTableStyles.Custom;
+        worksheetPivot.Column(1).Width = 80;
+        worksheetPivot.Column(1).Style.WrapText = true;
+        worksheetPivot.Column(1).AutoFit(0, 40);
+        worksheetPivot.Columns[2, 3].Width = 10;
+        worksheetPivot.Columns[2, 3].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+    }
+
+    private async Task ExportCSV()
+    {
+        if (!EvaluationTypesReport.Any())
+            return;
+
+        List<dynamic> records = new();
+        byte[] bytes;
+        ExportCSVBusy = true;
+        string reportName = ExportXLSBusy ? "General report.xlsx" : "Evaluation type report.csv";
+
+        if (IsGeneralReport)
+        {
+            bytes = FileBuilder?.BuildCSVFile(EvaluationTypesReport, "generalQualityRate");
+        }
+        else
+        {
+            var newRecord = new
+            {
+                Process = string.Empty,
+                OrdersAudited = $"Total orders: {totalOrders}",
+                Errors = $"Total errors: {totalErrors}",
+            };
+
+            records.AddRange(EvaluationTypesReport);
+            records.Add(newRecord);
+
+            bytes = FileBuilder.BuildCSVFile(EvaluationTypesReport, "evaluationsTypeQualityRate");
+        }
+
+        if (JSRuntime is not null)
+            await JSRuntime.SaveAs(reportName, bytes);
+
+        ExportCSVBusy = false;
+    }
+
+    private async Task OnRowSelect(QualityRateDTO qualityRateDTO)
+    {
+        await OnRowSelected.InvokeAsync(qualityRateDTO);
+    }
+
+    private void GeneralWorksheetStyle(ExcelWorksheet GeneralWorksheet)
+    {
+        GeneralWorksheet.Cells.AutoFitColumns();
+        GeneralWorksheet.Column(1).Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+        GeneralWorksheet.Column(2).Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+        GeneralWorksheet.Column(3).Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+        GeneralWorksheet.Column(4).Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+        GeneralWorksheet.Column(4).Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+        GeneralWorksheet.Column(5).Style.VerticalAlignment = ExcelVerticalAlignment.Top;
+        GeneralWorksheet.Column(5).AutoFit(50, 70);
+        GeneralWorksheet.Column(5).Style.WrapText = true;
+        GeneralWorksheet.Column(6).Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+
+        ExcelTable generalReportTable = GeneralWorksheet.Tables.Add(GeneralWorksheet.Dimension, "GeneralReport");
+        generalReportTable.TableStyle = TableStyles.Custom;
+    }
+}

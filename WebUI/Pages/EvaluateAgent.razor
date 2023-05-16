@@ -1,0 +1,173 @@
+﻿@page "/evaluate"
+
+<PageTitle>Quasar | Evaluate</PageTitle>
+@attribute [Authorize(Policy = "IsEvaluator")]
+
+<ErrorBoundary>
+    <ChildContent>
+        <RadzenPanel AllowCollapse="true" class="mx-auto mb-3 p-0">
+            <HeaderTemplate>
+                <h4 class="panel-header">
+                    <strong>Evaluate agent</strong>
+                </h4>
+            </HeaderTemplate>
+            <ChildContent>
+
+                <div class="row rz-custom-selector mt-4 mb-n2 mx-1">
+
+                    @if (model.Projects?.Count > 1)
+                    {
+                        <div class="col-md-6 col-lg-6 col-xl-5">
+                            <RadzenLabel Text="Project" />
+                            <RadzenDropDownDataGrid class="w-100" Change="OnSelectedProject" AllowFiltering=true
+                                                TValue=string AllowSorting=true FilterDelay=1
+                                                FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
+                                                AllowClear=true @bind-Value=model.ProjectId Placeholder="All"
+                                                Data=@model.Projects TextProperty=Name ValueProperty=Id />
+                        </div>
+                    }
+
+                    <div class="col-md-6 col-lg-6 col-xl-5">
+                        <RadzenLabel Text="Evaluation type" />
+                        <RadzenDropDownDataGrid class="w-100" 
+                                                ValueChanged="OnEvaluationTypeChange"
+                                                AllowFiltering=true
+                                                TValue="EvaluationType"
+                                                AllowSorting=true FilterDelay=1
+                                                FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
+                                                AllowClear=true Placeholder="Choose"
+                                                @ref="EvaluationTypesGridRef"
+                                                Data=@model.EvaluationTypes TextProperty=Name />
+                    </div>
+
+                    <div class="col-md-6 col-lg-6 col-xl-5">
+                        <RadzenLabel Text="Agent" />
+                        <RadzenDropDownDataGrid class="w-100" AllowFiltering=true
+                                                @bind-Value="@model.Agent"
+                                                Disabled="@(model.EvaluationTypeId is null)"
+                                                TValue=Employee AllowSorting=true FilterDelay=1
+                                                FilterCaseSensitivity=FilterCaseSensitivity.CaseInsensitive
+                                                AllowClear=true Placeholder="Choose"
+                                                Change="OnSelectedAgent"
+                                                TextProperty="IdName"
+                                                Data=@model.ProjectEmployees>
+
+                            <Columns>
+                                <RadzenDropDownDataGridColumn Property="IdName" Title="Id-Name" />
+                            </Columns>
+                        </RadzenDropDownDataGrid>
+
+                    </div>
+
+                </div>
+
+                @if (model.Agent is not null && model.EvaluationTypeId is not null)
+                {
+                    <AgentEvaluationsStats>
+                        @*<AssessmentStat Data="@evaluationsByMonthCount.ToString()" IconType="assignment_turned_in" Title="Monthly evaluations" />*@
+                        @*<AssessmentStat Data="@($"{averageScore:F2}")" IconType="score" Title="Monthly AVG score" />*@
+                        <AssessmentStat Data="@evaluationsByDayCount.ToString()" IconType="calendar_today" Title="Today's processed evaluations" />
+                    </AgentEvaluationsStats>
+
+
+                    <RadzenCard class="p-0 mt-4 mb-4 mx-3">
+                        <h4 class="panel-header">
+                            <strong>Evaluation form</strong>
+                        </h4>
+                        <RadzenTemplateForm TItem="EvaluationDTO" Data="model" Submit="SaveEvaluation">
+                            <div class="row mt-4 px-2 rz-custom-selector justify-content-around">
+                                <div class="col-sm-6 rz-custom-selector col-lg-6 col-md-5">
+                                    <div class="row">
+                                        <div class="col-xs-12 col-lg-5 col-xl-4">
+                                            <RadzenLabel Text="Score" />
+                                            <RadzenTextBox Value="@model.Score.ToString()" Disabled="true" class="w-100" />
+                                        </div>
+                                        <div class="col-xs-12 col-xl-8">
+                                            <RadzenLabel Text="Agent" />
+                                            <RadzenTextBox Value="@model.Agent.IdCommonName" Disabled="true" class="w-100" />
+                                        </div>
+                                        <div class="col-xs-12 col-lg-6 col-xl-4">
+                                            <RadzenLabel Text="Case number" />
+                                            <RadzenTextBox @bind-Value="model.CaseNumber" class="w-100" />
+                                        </div>
+                                        <div class="col-xs-12 col-lg-6 col-xl-4">
+                                            <RadzenLabel Text="Account number" />
+                                            <RadzenTextBox @bind-Value="model.AccountNumber" class="w-100" />
+                                        </div>
+                                        <div class="col-xs-12 col-lg-12 col-xl-4 mb-4">
+                                            <RadzenLabel Text="Evaluation date" />
+                                            <RadzenDatePicker class="w-100" TValue="DateTime" @bind-Value=evaluationDate
+                                                          AllowInput=false DateFormat="MM/dd/yyyy" Max="DateTime.Today.Date" />
+                                        </div>
+                                        <div class="col-xs-12 col-lg-12 col-xl-8">
+                                            <RadzenLabel Text="Comments" />
+                                            <RadzenTextBox @bind-Value="model.Comments" Name="Comments" class="w-100" />
+                                            <RadzenRequiredValidator Component="Comments" Text="The Comment is required" Popup=true />
+                                        </div>
+
+                                    </div>
+
+                                    <RadzenButton class="mb-3 icon"
+                                              ButtonType="ButtonType.Submit"
+                                              Icon="save" />
+                                </div>
+
+                                <div class="col-lg-5 col-sm-6 col-xl-4 col-md-7" style="max-height:600px;overflow-y:scroll">
+                                    @foreach (var component in evaluationComponents)
+                                    {
+                                        <div class="row align-items-center">
+                                            <div class="col-xs-12 mb-3">
+                                                <RadzenLabel Text="@component?.Name" />
+                                            </div>
+                                            <div class="col-sm-7 col-md-8 col-xl-5">
+                                                <RadzenRadioButtonList Value=@component.SelectedOption
+                                                               ValueProperty="SelectedOption"
+                                                               ValueChanged="((value) => OnRadioButtonChanged(value, component))"
+                                                               TValue="bool" class="d-flex justify-content-center">
+                                                    <Items>
+                                                        <RadzenRadioButtonListItem Text="Yes" Value="true" />
+                                                        <RadzenRadioButtonListItem Text="No" Value="false" />
+                                                    </Items>
+                                                </RadzenRadioButtonList>
+                                            </div>
+
+                                            @if (model.IsUsingScoreValue)
+                                            {
+                                                <div class="col-sm-5 col-md-4 col-xl-5">
+                                                    <RadzenNumeric class="w-100 my-0" TValue="int"
+                                                       @bind-Value="component.CurrentDeductionValue"
+                                                       Disabled="@component.SelectedOption"
+                                                       Change="(value) => CalculateScore(value, component)" Name="@component.Name" />
+                                                    <RadzenNumericRangeValidator Component="@component.Name" Min="0" Text="This value cannot be less then zero" Popup=true />
+                                                </div>
+                                            }
+
+                                        </div>
+                                        <hr class="hr" />
+                                    }
+                                </div>
+                            </div>
+                        </RadzenTemplateForm>
+
+                    </RadzenCard>
+                }
+            </ChildContent>
+        </RadzenPanel>
+
+        <EvaluationsTable @ref="EvaluationsTableRef"
+                          EvaluationDTOs="currentDayEvaluations"
+                          ShowEvaluator="false"
+                          OnEvaluationStateChnage="UpdateAgentStats"
+                          ShowExportButtons="false">
+            <div class="panel-header" style="margin-bottom:38px">
+                Today's processed evaluations
+                <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@currentDayEvaluations.Count.ToString()" class="rounded-pill" Style="font-size:20px;" />
+            </div>
+        </EvaluationsTable>
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>

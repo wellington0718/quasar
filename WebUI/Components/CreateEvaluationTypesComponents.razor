@@ -1,0 +1,99 @@
+﻿<style>
+    .error-text {
+        color: #842029;
+        border-color: #f5c2c7;
+        font-size: 16px;
+        font-family: system-ui;
+        position: absolute;
+        left: 15px;
+        bottom: -4px;
+        min-width: 250px;
+    }
+
+</style>
+
+<ErrorBoundary>
+    <ChildContent>
+        <div>
+            <h4 class="panel-header mb-4 mt-2">
+                <strong>Components</strong>
+            </h4>
+
+            <RadzenTemplateForm Context="CreateConmponents" TItem="CreateEvaluationTypeDTO" Data="model" Submit="AddComponent">
+                <div class="row rz-custom-selector align-items-center pr-5">
+                    <div class="col-6 col-lg-5 col-xl-3">
+                        <RadzenLabel Text="Name" />
+                        <RadzenTextBox class="w-100" @bind-Value="model.EvaluationComponent.Name" Placeholder="type..." Name="ComponentName" />
+                        <RadzenRequiredValidator Component="ComponentName" Text="Component name is required" Popup=true />
+                        <RadzenCompareValidator Visible="@(Components.Any(c => c.Name.Equals(model.EvaluationComponent.Name, StringComparison.CurrentCultureIgnoreCase)))" Value=@model.EvaluationComponent.Name Operator="CompareOperator.NotEqual" Component="ComponentName" Text="This component already exists" Popup=true />
+                    </div>
+
+                    @if (EvaluationType is not null && EvaluationType.IsUsingScoreValue ||  model.IsUsingScoreValue)
+                    {
+                        <div class="col-4 col-lg-2 col-xl-2">
+                            <RadzenLabel Text="Value" />
+                            <RadzenNumeric class="w-100" TValue="int" @bind-Value="model.EvaluationComponent.DeductionValue" Name="DeductionValue" />
+                            <RadzenNumericRangeValidator Min="1" Max="100" Component="DeductionValue" Text="Deduction value must be grater than zero" Popup=true />
+                        </div>
+                    }
+
+                    <div class="col-1 mt-n4 p-0">
+                        <RadzenButton class="icon"
+                                      ButtonType="ButtonType.Submit"
+                                      Icon="add_circle_outline" />
+                    </div>
+
+                </div>
+
+                <div class="alert mt-n2 mb-4 alert-danger col-5" role="alert" style="display:@(HasAnyComponents? "none" : "block")">
+                    <span> Evaluation types must have at least one component</span>
+                </div>
+                <hr class="mt-n3" />
+            </RadzenTemplateForm>
+
+            @if (Components.Any())
+            {
+                <div style="max-height:300px; overflow:hidden scroll" class="pr-2 mb-4">
+                    @foreach (var component in Components)
+                    {
+                        <div class="row rz-custom-selector align-items-center pr-4">
+                            <div class="col-6 col-lg-5 col-xl-3">
+                                <RadzenLabel Text="Name" />
+                                <RadzenTextBox class="w-100" Change="() => HandleComponentChange(component)" @bind-Value="component.Name" Name="@component.Id" />
+                                <RadzenRequiredValidator Component="@component.Id" Text="Component name is required" Popup=true />
+
+                                @if (ExisitingComponentName.Equals(component.Name.Trim()))
+                                {
+                                    <RadzenCompareValidator Visible=true Component="@component.Id" Text="Components name cannot be the same" Popup=true />
+                                }
+
+                            </div>
+
+                            @if (EvaluationType is not null && EvaluationType.IsUsingScoreValue ||  model.IsUsingScoreValue)
+                            {
+                                <div class="col-4 col-lg-2 col-xl-2 mr-n3">
+                                    <RadzenLabel Text="Value" />
+                                    <RadzenNumeric class="w-100" Change="() => HandleComponentChange(component)" TValue="int" @bind-Value="component.DeductionValue" Name="@component.Name" />
+                                    <RadzenNumericRangeValidator Min="1" Max="100" Component="@component.Name" Text="Deduction value must be grater than zero" Popup=true />
+                                </div>
+                            }
+
+                            <div class="mt-n4 col-1">
+                                <RadzenButton class="icon"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      Click="(arg => RemoveComponent(component))"
+                                      Icon="delete" />
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+    </ChildContent>
+    <ErrorContent Context="ex">
+        @{
+            Error.ProcessError(ex);
+        }
+    </ErrorContent>
+</ErrorBoundary>
